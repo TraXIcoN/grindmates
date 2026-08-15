@@ -10,6 +10,7 @@ import React, {
 } from 'react';
 
 import { createGroup, fetchMyGroups, fetchProfile } from '@/lib/api';
+import { DEMO, DEMO_USER_ID, subscribeDemo } from '@/lib/demo';
 import { supabase } from '@/lib/supabase';
 import { EMPTY_DRAFT, type CheckInDraft, type FeedItem, type Group, type Profile } from '@/lib/types';
 
@@ -73,6 +74,19 @@ const AppContext = createContext<AppState | null>(null);
 
 const ACTIVE_GROUP_KEY = 'vitals.activeGroupId';
 
+/**
+ * A stand-in for a signed-in Supabase session, used only when no project is
+ * configured. It carries the one field the app reads — user.id — so every
+ * screen below the auth gate behaves exactly as it does against a real backend.
+ */
+const DEMO_SESSION = {
+  access_token: 'demo',
+  refresh_token: 'demo',
+  token_type: 'bearer',
+  expires_in: 3600,
+  user: { id: DEMO_USER_ID, aud: 'authenticated', app_metadata: {}, user_metadata: {} },
+} as unknown as Session;
+
 export function AppProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -88,6 +102,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   /* ---------------------------------------------------------------- auth -- */
 
   useEffect(() => {
+    // Demo mode is signed in from the first frame — there is no session to read
+    // and no auth server to listen to.
+    if (DEMO) {
+      setSession(DEMO_SESSION);
+      setBooting(false);
+      return;
+    }
+
     let alive = true;
 
     supabase.auth.getSession().then(({ data }) => {
@@ -149,6 +171,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Keep the streak badge honest without a refetch after posting.
   useEffect(() => {
     if (!userId) return;
+
+    // The demo store publishes its own change events in place of realtime.
+    if (DEMO) return subscribeDemo(() => void refreshProfile());
+
     const channel = supabase
       .channel(`profile:${userId}`)
       .on(
@@ -160,7 +186,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [userId]);
+  }, [userId, refreshProfile]);
 
   /* -------------------------------------------------------------- actions -- */
 
@@ -198,12 +224,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
 
   const signInWithEmail = useCallback(async (email: string, password: string) => {
+    if (DEMO) {
+      setSession(DEMO_SESSION);
+      return null;
+    }
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     return error?.message ?? null;
   }, []);
 
   const signUpWithEmail = useCallback(
     async (email: string, password: string, username: string) => {
+      if (DEMO) {
+        setSession(DEMO_SESSION);
+        return { error: null, needsConfirmation: false };
+      }
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -218,11 +252,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
 
   const signInAnonymously = useCallback(async () => {
+    if (DEMO) {
+      setSession(DEMO_SESSION);
+      return null;
+    }
     const { error } = await supabase.auth.signInAnonymously();
     return error?.message ?? null;
   }, []);
 
   const signOut = useCallback(async () => {
+    if (DEMO) {
+      setSession(null);
+      setProfile(null);
+      setGroups([]);
+      setActiveGroupId(null);
+      return;
+    }
     await supabase.auth.signOut();
   }, []);
 

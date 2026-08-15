@@ -35,7 +35,16 @@
         }
       ]
     ],
-    "experiments": { "typedRoutes": true },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "backgroundColor": "#090D16",
+      "favicon": "./assets/favicon.png"
+    },
+    "experiments": {
+      "typedRoutes": true,
+      "baseUrl": "/grindmates"
+    },
     "extra": {
       "supabaseUrl": "https://YOUR-PROJECT.supabase.co",
       "supabaseAnonKey": "YOUR-ANON-KEY"

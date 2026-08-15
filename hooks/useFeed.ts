@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { fetchFeed, toggleReaction } from '@/lib/api';
+import { DEMO, subscribeDemo } from '@/lib/demo';
 import { supabase } from '@/lib/supabase';
 import type { FeedItem, ReactionType } from '@/lib/types';
 
@@ -45,6 +46,11 @@ export function useFeed(groupId: string | null, viewerId: string | null) {
   // Live updates: someone else's check-in or reaction lands while you're looking.
   useEffect(() => {
     if (!groupId) return;
+
+    // Demo mode has no websocket; the in-memory store emits the same signal so
+    // a posted check-in replaces its optimistic card the same way.
+    if (DEMO) return subscribeDemo(() => void load({ silent: true }));
+
     const channel = supabase
       .channel(`feed:${groupId}`)
       .on(

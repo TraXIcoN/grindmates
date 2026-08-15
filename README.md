@@ -12,9 +12,23 @@ single live action per screen.
 
 ```bash
 npm install
-cp .env.example .env          # fill in your Supabase URL + anon key
 npx expo start
 ```
+
+That runs immediately, with no backend: when `EXPO_PUBLIC_SUPABASE_URL` is unset the
+app serves in-memory fixtures from `lib/demo.ts` — two groups, eight members, a few
+check-ins — so every screen is explorable on first clone. Reactions, group switching,
+and posting a check-in all work against the in-memory store; nothing is persisted.
+
+To point it at a real project:
+
+```bash
+cp .env.example .env          # fill in your Supabase URL + anon key
+npx expo start --clear
+```
+
+The moment that URL is real, every `if (DEMO)` branch switches off and the app talks
+only to Supabase.
 
 Then run the migration once against your Supabase project:
 
@@ -128,3 +142,35 @@ The design doc asks whether effort tier drives a numeric strain score. It does:
 `strainFrom()` sums the tiers, scales by 1.4, and caps at 21. Change that one function
 to change the whole scale — the ring, the summary, and the `PR` badge threshold all
 read from it.
+
+---
+
+## Web demo and CI
+
+`.github/workflows/ci.yml` runs on every push and pull request: `npm ci`, a
+typecheck, and a full `expo export --platform web`. The export is the cheap
+end-to-end proof that every import resolves and Metro can bundle the app.
+
+`.github/workflows/pages.yml` publishes that same web build to GitHub Pages. It is
+inert until Pages is switched on under **Settings → Pages → Source: GitHub Actions** —
+and on a free account that also requires the repository to be public. No Supabase
+secrets are supplied to the workflow, so the deployed page runs in demo mode.
+
+Two details in that setup are load-bearing:
+
+- The workflow touches `dist/.nojekyll`. Without it, Pages runs the output through
+  Jekyll, which strips every path starting with an underscore — including Expo's
+  entire `_expo/static` bundle directory. The site deploys and then 404s on its own
+  JavaScript.
+- `app.json` sets `experiments.baseUrl` to `/grindmates` so assets resolve under the
+  repository sub-path. **If the repository is renamed, that value has to change with
+  it**, or every asset 404s.
+
+---
+
+## Not built
+
+- Comment threads. Counts render on the reaction bar; there is no `comments` table.
+- The nudge action is inert — it dismisses, it does not notify.
+- No group create/join screen. `addGroup()` is wired in `useApp` and works; it just
+  has no UI yet.

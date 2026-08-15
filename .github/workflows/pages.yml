@@ -1,0 +1,59 @@
+name: Deploy web demo to Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Inert until Pages is enabled: Settings -> Pages -> Source: GitHub Actions.
+# On a free account that also requires the repository to be public.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      # No Supabase secrets are provided, so the app builds in demo mode and
+      # the deployed page shows the real UI on in-memory fixtures.
+      - name: Build web
+        run: npx expo export --platform web --output-dir dist
+
+      # Without this, GitHub Pages runs the output through Jekyll, which drops
+      # every path beginning with an underscore — including Expo's entire
+      # _expo/static bundle directory. The site would deploy and then 404 on
+      # its own JavaScript.
+      - name: Disable Jekyll
+        run: touch dist/.nojekyll
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

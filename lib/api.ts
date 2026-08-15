@@ -1,3 +1,13 @@
+import {
+  DEMO,
+  demoCreateGroup,
+  demoFeed,
+  demoGroups,
+  demoPendingMembers,
+  demoPostCheckIn,
+  demoProfile,
+  demoToggleReaction,
+} from './demo';
 import { supabase } from './supabase';
 import type {
   CheckIn,
@@ -14,6 +24,8 @@ import type {
 /* -------------------------------------------------------------------------- */
 
 export async function fetchProfile(userId: string): Promise<Profile | null> {
+  if (DEMO) return demoProfile(userId);
+
   const { data, error } = await supabase
     .from('profiles')
     .select('*')
@@ -24,6 +36,8 @@ export async function fetchProfile(userId: string): Promise<Profile | null> {
 }
 
 export async function fetchMyGroups(userId: string): Promise<Group[]> {
+  if (DEMO) return demoGroups(userId);
+
   const { data, error } = await supabase
     .from('group_members')
     .select('groups(id, name, emblem, owner_id, created_at)')
@@ -58,6 +72,8 @@ export async function fetchMyGroups(userId: string): Promise<Group[]> {
 }
 
 export async function createGroup(name: string, emblem: string, ownerId: string): Promise<Group> {
+  if (DEMO) return demoCreateGroup(name, emblem, ownerId);
+
   const { data, error } = await supabase
     .from('groups')
     .insert({ name, emblem, owner_id: ownerId })
@@ -72,6 +88,8 @@ export async function fetchPendingMembers(
   groupId: string,
   postedUserIds: string[],
 ): Promise<Array<Pick<Profile, 'id' | 'username' | 'avatar_url'>>> {
+  if (DEMO) return demoPendingMembers(groupId, postedUserIds);
+
   const { data, error } = await supabase
     .from('group_members')
     .select('profiles(id, username, avatar_url)')
@@ -104,6 +122,8 @@ const FEED_SELECT = `
 
 /** Chronological, today-first. Small closed groups, so one page is the feed. */
 export async function fetchFeed(groupId: string, viewerId: string): Promise<FeedItem[]> {
+  if (DEMO) return demoFeed(groupId, viewerId);
+
   const { data, error } = await supabase
     .from('check_ins')
     .select(FEED_SELECT)
@@ -169,6 +189,17 @@ export interface PostCheckInArgs {
  * rendering a card with an empty muscle strip.
  */
 export async function postCheckIn(args: PostCheckInArgs): Promise<CheckIn> {
+  if (DEMO) {
+    return demoPostCheckIn({
+      groupId: args.groupId,
+      photoUrl: args.photoUrl,
+      caption: args.caption,
+      workoutLabel: args.workoutLabel,
+      strain: strainFrom(args.effort),
+      effort: args.effort,
+    });
+  }
+
   const muscles = Object.entries(args.effort).map(([muscle_group, effort_level]) => ({
     muscle_group: muscle_group as MuscleGroup,
     effort_level: String(effort_level),
@@ -216,6 +247,11 @@ export async function toggleReaction(
   type: ReactionType,
   nextOn: boolean,
 ): Promise<void> {
+  if (DEMO) {
+    demoToggleReaction(checkInId, userId, type, nextOn);
+    return;
+  }
+
   if (nextOn) {
     const { error } = await supabase
       .from('reactions')

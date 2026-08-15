@@ -5,6 +5,8 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
+import { DEMO, DEMO_SUPABASE_KEY, DEMO_SUPABASE_URL, demoUploadPhoto } from './demo';
+
 /**
  * Config resolution order:
  *   1. EXPO_PUBLIC_* env vars (.env, works in dev + EAS build)
@@ -15,14 +17,24 @@ const extra = (Constants.expoConfig?.extra ?? {}) as {
   supabaseAnonKey?: string;
 };
 
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL ?? extra.supabaseUrl ?? '';
-const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? extra.supabaseAnonKey ?? '';
+const configuredUrl = process.env.EXPO_PUBLIC_SUPABASE_URL ?? extra.supabaseUrl ?? '';
+const configuredKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? extra.supabaseAnonKey ?? '';
 
-if (!supabaseUrl || !supabaseAnonKey || supabaseUrl.includes('YOUR-PROJECT')) {
-  console.warn(
-    '[vitals] Supabase is not configured. Copy .env.example to .env and fill in ' +
-      'EXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_ANON_KEY.',
+/**
+ * With no project configured the app runs on in-memory fixtures (see
+ * lib/demo.ts) and never touches the network — but createClient still needs a
+ * well-formed URL to parse, so hand it a placeholder rather than ''.
+ */
+const supabaseUrl = DEMO ? DEMO_SUPABASE_URL : configuredUrl;
+const supabaseAnonKey = DEMO ? DEMO_SUPABASE_KEY : configuredKey;
+
+if (DEMO) {
+  console.info(
+    '[vitals] Demo mode — showing sample data. Copy .env.example to .env and fill in ' +
+      'EXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_ANON_KEY to use a real project.',
   );
+} else if (!configuredKey) {
+  console.warn('[vitals] EXPO_PUBLIC_SUPABASE_ANON_KEY is missing.');
 }
 
 export const supabase: SupabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
@@ -45,7 +57,9 @@ export const CHECKIN_BUCKET = 'checkin-photos';
  * passes.
  */
 export async function uploadCheckInPhoto(userId: string, localUri: string): Promise<string> {
-  const ext = (localUri.split('.').pop() ?? 'jpg').split('?')[0].toLowerCase();
+  if (DEMO) return demoUploadPhoto(localUri);
+
+  const ext =(localUri.split('.').pop() ?? 'jpg').split('?')[0].toLowerCase();
   const contentType = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
   const path = `${userId}/${globalThis.crypto?.randomUUID?.() ?? `${Date.now()}`}.${ext}`;
 
