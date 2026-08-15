@@ -151,6 +151,17 @@ read from it.
 typecheck, and a full `expo export --platform web`. The export is the cheap
 end-to-end proof that every import resolves and Metro can bundle the app.
 
+**Both workflows pin Node 22, and the web export needs it.** Static rendering
+evaluates every module in Node, and `@supabase/supabase-js` requires a global
+`WebSocket`, which Node did not ship until 22. On Node 20 the export dies with
+"Node.js detected but native WebSocket not found" — the demo build no longer
+constructs a client at all (see `lib/supabase.ts`), but a build configured with
+real credentials still would.
+
+If a rebuild ignores a changed `EXPO_PUBLIC_*` value, clear Metro's transform
+cache — `npx expo start --clear`, or delete `/tmp/metro-cache` before exporting.
+It caches transformed modules with those values already inlined.
+
 `.github/workflows/pages.yml` publishes that same web build to GitHub Pages. It is
 inert until Pages is switched on under **Settings → Pages → Source: GitHub Actions** —
 and on a free account that also requires the repository to be public. No Supabase

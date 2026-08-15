@@ -35,10 +35,6 @@ const configuredUrl = process.env.EXPO_PUBLIC_SUPABASE_URL ?? extra.supabaseUrl 
  */
 export const DEMO = !configuredUrl || configuredUrl.includes('YOUR-PROJECT');
 
-/** Placeholders so createClient() has a well-formed URL to parse in demo mode. */
-export const DEMO_SUPABASE_URL = 'https://demo.vitals.invalid';
-export const DEMO_SUPABASE_KEY = 'demo-anon-key';
-
 /* -------------------------------------------------------------------------- */
 /* Clock                                                                      */
 /* -------------------------------------------------------------------------- */
