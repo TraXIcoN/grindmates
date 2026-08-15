@@ -1,0 +1,44 @@
+{
+  "expo": {
+    "name": "Vitals",
+    "slug": "vitals",
+    "version": "1.0.0",
+    "scheme": "vitals",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "backgroundColor": "#090D16",
+    "splash": {
+      "backgroundColor": "#090D16",
+      "resizeMode": "contain"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.vitals.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Vitals uses the camera to capture your post-workout check-in photo.",
+        "NSPhotoLibraryUsageDescription": "Pick an existing photo for your check-in."
+      }
+    },
+    "android": {
+      "package": "com.vitals.app",
+      "edgeToEdgeEnabled": true,
+      "permissions": ["android.permission.CAMERA"],
+      "adaptiveIcon": { "backgroundColor": "#090D16" }
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Vitals uses the camera to capture your post-workout check-in photo."
+        }
+      ]
+    ],
+    "experiments": { "typedRoutes": true },
+    "extra": {
+      "supabaseUrl": "https://YOUR-PROJECT.supabase.co",
+      "supabaseAnonKey": "YOUR-ANON-KEY"
+    }
+  }
+}
