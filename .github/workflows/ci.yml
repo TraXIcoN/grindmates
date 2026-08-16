@@ -29,7 +29,9 @@ jobs:
         run: npm run typecheck
 
       # Exporting for web is the cheapest end-to-end proof that every import
-      # resolves and Metro can actually bundle the app.
+      # resolves and Metro can actually bundle the app. Deliberately built
+      # WITHOUT Supabase env: CI keeps exercising the local-mode code path,
+      # while the Pages workflow builds against the real project.
       - name: Build web
         run: npx expo export --platform web --output-dir dist
 

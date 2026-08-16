@@ -31,10 +31,15 @@ jobs:
       - name: Install
         run: npm ci
 
-      # No Supabase secrets are provided, so the app builds in demo mode and
-      # the deployed page shows the real UI on in-memory fixtures.
+      # The publishable key is the browser-facing client key: it ships inside
+      # the JS bundle by design (every visitor's browser sends it), and
+      # row-level security is the actual boundary. Committing it here is
+      # equivalent to serving it, which Pages does anyway.
       - name: Build web
         run: npx expo export --platform web --output-dir dist
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: https://megneazswpqukohasryj.supabase.co
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: sb_publishable_2e_pBrWEsL0Rr7nommakxA_a_54sniB
 
       # Without this, GitHub Pages runs the output through Jekyll, which drops
       # every path beginning with an underscore — including Expo's entire

@@ -28,12 +28,25 @@ your crew until the app points at a real Supabase project.
 To point it at a real project:
 
 ```bash
-cp .env.example .env          # fill in your Supabase URL + anon key
+cp .env.example .env          # fill in your Supabase URL + publishable/anon key
 npx expo start --clear
 ```
 
 The moment that URL is real, every `if (DEMO)` branch switches off and the app talks
-only to Supabase.
+only to Supabase. Apply the migrations first — either paste each file from
+`supabase/migrations/` (in order) into the dashboard SQL editor, or from a machine
+with Postgres access:
+
+```bash
+cat supabase/migrations/*.sql | psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1
+```
+
+Two dashboard settings matter for a hosted build: **Authentication → URL
+Configuration → Site URL** should be the deployed URL (else email-confirmation
+links redirect to localhost), and if you want zero-friction sign-in, disable
+**Confirm email** under Authentication → Sign In / Providers, or enable
+**Anonymous sign-ins**. The Pages workflow bakes the project URL and publishable
+key into the deployed bundle — that key is public by design; RLS is the boundary.
 
 Then run the migrations in order against your Supabase project:
 
