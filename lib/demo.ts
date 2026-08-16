@@ -52,6 +52,7 @@ const store = {
   profiles: [] as Profile[],
   groups: [] as Group[],
   rows: [] as DemoRow[],
+  weights: [] as Array<{ measured_on: string; kg: number }>,
 };
 
 /** group id -> member ids. */
@@ -84,6 +85,7 @@ export async function hydrateDemo(): Promise<boolean> {
       store.profiles = saved.profiles ?? [];
       store.groups = saved.groups ?? [];
       store.rows = saved.rows ?? [];
+      store.weights = saved.weights ?? [];
       roster = saved.roster ?? {};
     }
   } catch {
@@ -344,4 +346,71 @@ export function demoPostCheckIn(args: DemoPostArgs): CheckIn {
 /** In demo mode the local file:// (or blob:) URI is already displayable. */
 export function demoUploadPhoto(localUri: string): string {
   return localUri;
+}
+
+/* -------------------------------------------------------------------------- */
+/* History & stats                                                            */
+/* -------------------------------------------------------------------------- */
+
+export interface HistoryItem {
+  created_at: string;
+  strain: number | null;
+  workout_label: string | null;
+  muscles: Array<{ muscle_group: MuscleGroup; effort_level: EffortLevel }>;
+}
+
+/** The viewer's own check-ins across every crew, newest first. */
+export function demoMyCheckIns(userId: string, sinceDays: number): HistoryItem[] {
+  const cutoff = Date.now() - sinceDays * 86_400_000;
+  return store.rows
+    .filter((r) => r.user_id === userId && new Date(r.created_at).getTime() >= cutoff)
+    .sort((a, b) => b.created_at.localeCompare(a.created_at))
+    .map(({ created_at, strain, workout_label, muscles }) => ({
+      created_at,
+      strain,
+      workout_label,
+      muscles,
+    }));
+}
+
+export interface WeightEntry {
+  measured_on: string;
+  kg: number;
+}
+
+export function demoWeights(): WeightEntry[] {
+  return [...store.weights].sort((a, b) => a.measured_on.localeCompare(b.measured_on));
+}
+
+/** One entry per day — logging twice on a day overwrites, like the upsert. */
+export function demoLogWeight(kg: number): WeightEntry {
+  const today = new Date().toISOString().slice(0, 10);
+  store.weights = [
+    ...store.weights.filter((w) => w.measured_on !== today),
+    { measured_on: today, kg },
+  ];
+  persist();
+  return { measured_on: today, kg };
+}
+
+/* -------------------------------------------------------------------------- */
+/* Backup                                                                     */
+/* -------------------------------------------------------------------------- */
+
+/** The full store as pretty JSON — the local-mode backup format. */
+export function demoExport(): string {
+  return JSON.stringify({ version: 1, exported_at: new Date().toISOString(), ...store, roster }, null, 2);
+}
+
+/** Deletes everything, including the persisted blob. Signs the user out. */
+export async function demoWipe(): Promise<void> {
+  store.signedIn = false;
+  store.profiles = [];
+  store.groups = [];
+  store.rows = [];
+  store.weights = [];
+  roster = {};
+  if (saveTimer) clearTimeout(saveTimer);
+  await AsyncStorage.removeItem(STORE_KEY).catch(() => {});
+  emit();
 }

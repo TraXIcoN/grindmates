@@ -9,6 +9,8 @@ export interface LoggedSet {
   type: SetType;
   /** null = the lifter rested without counting reps. */
   reps: number | null;
+  /** null = no load tracked for this set. */
+  weight: number | null;
 }
 
 const TYPE_GLYPH: Record<SetType, { letter: string; tint: string }> = {
@@ -53,6 +55,7 @@ export function SetLogList({ sets, onRemove }: Props) {
             <Text style={styles.index}>{i + 1}</Text>
             <Text style={[styles.letter, { color: glyph.tint }]}>{glyph.letter}</Text>
             <Text style={styles.reps}>{set.reps ?? '—'}</Text>
+            {set.weight !== null ? <Text style={styles.weight}>{set.weight} kg</Text> : null}
           </Pressable>
         );
       })}
@@ -77,6 +80,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '800',
     color: color.text,
+    fontVariant: ['tabular-nums'],
+  },
+  weight: {
+    fontSize: 9.5,
+    fontWeight: '700',
+    color: color.muted,
     fontVariant: ['tabular-nums'],
   },
 });

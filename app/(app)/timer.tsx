@@ -2,7 +2,7 @@ import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { X } from 'lucide-react-native';
+import { Calculator, Minus, Plus, X } from 'lucide-react-native';
 import Animated, { FadeIn, FadeOut, SlideInDown, SlideOutDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -33,6 +33,7 @@ export default function TimerScreen() {
 
   const [setType, setSetType] = useState<SetType>('working');
   const [reps, setReps] = useState<number | null>(null);
+  const [weight, setWeight] = useState<number | null>(null);
   const [sets, setSets] = useState<LoggedSet[]>([]);
   const [restBanked, setRestBanked] = useState(0);
 
@@ -47,9 +48,19 @@ export default function TimerScreen() {
   const logSet = useCallback(() => {
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     bankElapsed();
-    setSets((prev) => [...prev, { type: setType, reps }]);
+    setSets((prev) => [...prev, { type: setType, reps, weight }]);
     timer.restart();
-  }, [bankElapsed, setType, reps, timer]);
+  }, [bankElapsed, setType, reps, weight, timer]);
+
+  /** ±2.5 kg; from nothing, the first press starts at the bar. */
+  const stepWeight = useCallback((delta: number) => {
+    void Haptics.selectionAsync();
+    setWeight((prev) => {
+      if (prev === null) return delta > 0 ? 20 : null;
+      const next = Math.round((prev + delta * 2.5) * 100) / 100;
+      return next < 2.5 ? null : Math.min(400, next);
+    });
+  }, []);
 
   const removeSet = useCallback((index: number) => {
     setSets((prev) => prev.filter((_, i) => i !== index));
@@ -79,14 +90,24 @@ export default function TimerScreen() {
 
         <View style={styles.head}>
           <Text style={styles.title}>Rest</Text>
-          <Pressable
-            accessibilityLabel="Close rest timer"
-            onPress={() => router.back()}
-            hitSlop={12}
-            style={({ pressed }) => [styles.close, pressed && { backgroundColor: color.surfaceHi }]}
-          >
-            <X size={18} color={color.textTertiary} strokeWidth={2.2} />
-          </Pressable>
+          <View style={styles.headActions}>
+            <Pressable
+              accessibilityLabel="Gym calculators"
+              onPress={() => router.push('/(app)/tools')}
+              hitSlop={12}
+              style={({ pressed }) => [styles.close, pressed && { backgroundColor: color.surfaceHi }]}
+            >
+              <Calculator size={16} color={color.textTertiary} strokeWidth={2.2} />
+            </Pressable>
+            <Pressable
+              accessibilityLabel="Close rest timer"
+              onPress={() => router.back()}
+              hitSlop={12}
+              style={({ pressed }) => [styles.close, pressed && { backgroundColor: color.surfaceHi }]}
+            >
+              <X size={18} color={color.textTertiary} strokeWidth={2.2} />
+            </Pressable>
+          </View>
         </View>
 
         <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
@@ -137,6 +158,33 @@ export default function TimerScreen() {
             <RepsPicker value={reps} onChange={setReps} />
           </View>
 
+          {/* Load, optional like reps. − from the lowest step clears it. */}
+          <View style={styles.weightRow}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Less weight"
+              onPress={() => stepWeight(-1)}
+              hitSlop={8}
+              style={({ pressed }) => [
+                styles.weightStep,
+                { opacity: weight === null ? 0.35 : 1 },
+                pressed && weight !== null && { backgroundColor: color.surfaceHi },
+              ]}
+            >
+              <Minus size={14} color={color.textTertiary} strokeWidth={2.4} />
+            </Pressable>
+            <Text style={styles.weightValue}>{weight === null ? 'no weight' : `${weight} kg`}</Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="More weight"
+              onPress={() => stepWeight(1)}
+              hitSlop={8}
+              style={({ pressed }) => [styles.weightStep, pressed && { backgroundColor: color.surfaceHi }]}
+            >
+              <Plus size={14} color={color.textTertiary} strokeWidth={2.4} />
+            </Pressable>
+          </View>
+
           <Pressable
             accessibilityRole="button"
             onPress={logSet}
@@ -146,7 +194,13 @@ export default function TimerScreen() {
             ]}
           >
             <Text style={styles.logCtaText}>
-              {reps === null ? 'Log set · rest' : `Log set · ${reps} reps`}
+              {reps === null && weight === null
+                ? 'Log set · rest'
+                : reps !== null && weight !== null
+                  ? `Log set · ${reps} × ${weight} kg`
+                  : reps !== null
+                    ? `Log set · ${reps} reps`
+                    : `Log set · ${weight} kg`}
             </Text>
           </Pressable>
 
@@ -193,6 +247,7 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  headActions: { flexDirection: 'row', gap: 8 },
   title: {
     fontSize: type.sheetTitle.fontSize,
     fontWeight: '800',
@@ -232,6 +287,30 @@ const styles = StyleSheet.create({
     letterSpacing: 1.76,
     color: color.muted,
     textAlign: 'center',
+  },
+
+  weightRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    marginTop: 10,
+  },
+  weightStep: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: color.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  weightValue: {
+    minWidth: 92,
+    textAlign: 'center',
+    fontSize: 13.5,
+    fontWeight: '800',
+    color: color.textSecondary,
+    fontVariant: ['tabular-nums'],
   },
 
   /** Accent-outline, not solid lime — the play button stays the screen's one

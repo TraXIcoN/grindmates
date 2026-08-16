@@ -5,10 +5,15 @@ import {
   demoFeed,
   demoGroups,
   demoJoinGroup,
+  demoLogWeight,
+  demoMyCheckIns,
   demoPendingMembers,
   demoPostCheckIn,
   demoProfile,
   demoToggleReaction,
+  demoWeights,
+  type HistoryItem,
+  type WeightEntry,
 } from './demo';
 import { supabase } from './supabase';
 import type {
@@ -260,6 +265,71 @@ export async function postCheckIn(args: PostCheckInArgs): Promise<CheckIn> {
 export function strainFrom(effort: Partial<Record<MuscleGroup, EffortLevel>>): number {
   const raw = Object.values(effort).reduce<number>((sum, tier) => sum + (tier ?? 0), 0);
   return Math.min(21, Math.round(raw * 1.4 * 10) / 10);
+}
+
+/* -------------------------------------------------------------------------- */
+/* History & bodyweight                                                       */
+/* -------------------------------------------------------------------------- */
+
+export type { HistoryItem, WeightEntry };
+
+/** The viewer's own check-ins across every crew — feeds the progress screen. */
+export async function fetchMyCheckIns(userId: string, sinceDays: number): Promise<HistoryItem[]> {
+  if (DEMO) return demoMyCheckIns(userId, sinceDays);
+
+  const cutoff = new Date(Date.now() - sinceDays * 86_400_000).toISOString();
+  const { data, error } = await supabase
+    .from('check_ins')
+    .select('created_at, strain, workout_label, muscle_logs ( muscle_group, effort_level )')
+    .eq('user_id', userId)
+    .gte('created_at', cutoff)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+
+  return (data ?? []).map((row) => {
+    const r = row as unknown as {
+      created_at: string;
+      strain: number | null;
+      workout_label: string | null;
+      muscle_logs: Array<{ muscle_group: MuscleGroup; effort_level: string }> | null;
+    };
+    return {
+      created_at: r.created_at,
+      strain: r.strain,
+      workout_label: r.workout_label,
+      muscles: (r.muscle_logs ?? []).map((m) => ({
+        muscle_group: m.muscle_group,
+        effort_level: Number(m.effort_level) as EffortLevel,
+      })),
+    };
+  });
+}
+
+export async function fetchWeights(userId: string): Promise<WeightEntry[]> {
+  if (DEMO) return demoWeights();
+
+  const { data, error } = await supabase
+    .from('body_weights')
+    .select('measured_on, kg')
+    .eq('user_id', userId)
+    .order('measured_on', { ascending: true })
+    .limit(120);
+  if (error) throw error;
+  return (data ?? []).map((r) => ({ ...(r as WeightEntry), kg: Number((r as WeightEntry).kg) }));
+}
+
+/** One entry per day; logging twice the same day overwrites. */
+export async function logWeight(userId: string, kg: number): Promise<WeightEntry> {
+  if (DEMO) return demoLogWeight(kg);
+
+  const measuredOn = new Date().toISOString().slice(0, 10);
+  const { data, error } = await supabase
+    .from('body_weights')
+    .upsert({ user_id: userId, measured_on: measuredOn, kg }, { onConflict: 'user_id,measured_on' })
+    .select('measured_on, kg')
+    .single();
+  if (error) throw error;
+  return { ...(data as WeightEntry), kg: Number((data as WeightEntry).kg) };
 }
 
 /* -------------------------------------------------------------------------- */

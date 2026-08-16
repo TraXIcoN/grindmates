@@ -21,6 +21,8 @@ export default function AppLayout() {
       <Stack.Screen name="feed" options={{ animation: 'fade' }} />
       <Stack.Screen name="camera" options={{ animation: 'slide_from_bottom' }} />
       <Stack.Screen name="log" options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="progress" options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="tools" options={{ animation: 'slide_from_right' }} />
       <Stack.Screen
         name="timer"
         options={{ presentation: 'transparentModal', animation: 'fade' }}

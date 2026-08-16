@@ -2,7 +2,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
-import { Timer } from 'lucide-react-native';
+import { BarChart3, Timer } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CheckInFab } from '@/components/feed/CheckInFab';
@@ -120,6 +120,14 @@ export default function FeedScreen() {
 
         <View style={styles.barRight}>
           <Pressable
+            accessibilityLabel="Progress"
+            onPress={() => router.push('/(app)/progress')}
+            hitSlop={10}
+            style={({ pressed }) => [styles.timerBtn, pressed && { backgroundColor: color.surfaceHi }]}
+          >
+            <BarChart3 size={17} color={color.textTertiary} strokeWidth={2} />
+          </Pressable>
+          <Pressable
             accessibilityLabel="Rest timer"
             onPress={() => router.push('/(app)/timer')}
             hitSlop={10}
@@ -127,7 +135,9 @@ export default function FeedScreen() {
           >
             <Timer size={17} color={color.textTertiary} strokeWidth={2} />
           </Pressable>
-          <StreakBadge count={profile?.streak_count ?? 0} />
+          <Pressable accessibilityLabel="Your streak and progress" onPress={() => router.push('/(app)/progress')}>
+            <StreakBadge count={profile?.streak_count ?? 0} />
+          </Pressable>
         </View>
       </View>
 
