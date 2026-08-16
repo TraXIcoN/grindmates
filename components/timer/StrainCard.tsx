@@ -51,10 +51,12 @@ export function StrainRing({ value, size = 92 }: { value: number; size?: number 
 interface CardProps {
   strain: number;
   sets: number;
+  /** Total logged reps across the session; null hides the stat entirely. */
+  totalReps?: number | null;
   totalRestSeconds: number;
 }
 
-export function StrainCard({ strain, sets, totalRestSeconds }: CardProps) {
+export function StrainCard({ strain, sets, totalReps, totalRestSeconds }: CardProps) {
   const mins = Math.floor(totalRestSeconds / 60);
   const secs = totalRestSeconds % 60;
 
@@ -62,8 +64,9 @@ export function StrainCard({ strain, sets, totalRestSeconds }: CardProps) {
     <View style={styles.card}>
       <StrainRing value={strain} />
       <View style={styles.stats}>
-        <Stat label="SETS RESTED" value={String(sets)} />
-        <Stat label="TIME UNDER REST" value={`${mins}m ${String(secs).padStart(2, '0')}s`} />
+        <Stat label="SETS" value={String(sets)} />
+        {totalReps != null ? <Stat label="TOTAL REPS" value={String(totalReps)} /> : null}
+        <Stat label="UNDER REST" value={`${mins}m ${String(secs).padStart(2, '0')}s`} />
       </View>
     </View>
   );
@@ -95,7 +98,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: border.faint,
   },
-  stats: { flex: 1, gap: 14 },
+  stats: { flex: 1, gap: 11 },
   statLabel: { fontSize: 10, fontWeight: '700', letterSpacing: 1.6, color: color.muted },
   statValue: {
     fontSize: 17,

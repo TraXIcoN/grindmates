@@ -15,7 +15,7 @@ interface SheetProps {
 /**
  * Bottom sheet. Scrim is bg@72% with a blur-equivalent tint; the panel is
  * bgRaised with a 26/26/0/0 radius and a slate grabber.
- * Spring-in via reanimated's stock SlideInDown — no gesture library needed.
+ * Slides in on a plain 220ms timing — it settles, it does not bounce.
  */
 export function Sheet({ open, onClose, children, bottomPad = 44 }: SheetProps) {
   return (
@@ -23,7 +23,7 @@ export function Sheet({ open, onClose, children, bottomPad = 44 }: SheetProps) {
       <Animated.View entering={FadeIn.duration(140)} exiting={FadeOut.duration(120)} style={styles.scrim}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Dismiss" />
         <Animated.View
-          entering={SlideInDown.springify().damping(20).stiffness(190)}
+          entering={SlideInDown.duration(220)}
           exiting={SlideOutDown.duration(160)}
           style={[styles.panel, { paddingBottom: bottomPad }]}
         >

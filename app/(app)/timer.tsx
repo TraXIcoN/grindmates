@@ -1,11 +1,14 @@
+import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useMemo, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { X } from 'lucide-react-native';
 import Animated, { FadeIn, FadeOut, SlideInDown, SlideOutDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CountdownDial } from '@/components/timer/CountdownDial';
+import { RepsPicker } from '@/components/timer/RepsPicker';
+import { SetLogList, type LoggedSet } from '@/components/timer/SetLogList';
 import { SetTypeSelector } from '@/components/timer/SetTypeSelector';
 import { StrainCard } from '@/components/timer/StrainCard';
 import { TransportRow } from '@/components/timer/TransportRow';
@@ -16,8 +19,12 @@ import type { SetType } from '@/lib/types';
 const PRESETS = [60, 90, 120, 180];
 
 /**
- * In-workout overlay. Presented as a transparent modal over whatever screen you
- * were on, so opening it never unmounts the feed.
+ * In-workout overlay. Presented as a transparent modal over whatever screen
+ * you were on, so opening it never unmounts the feed.
+ *
+ * The loop it is built around: finish a set → tag it (type, reps if you count
+ * them) → one tap logs it and starts the rest → lift again at zero. Reps are
+ * an option, not a demand — the play button alone is still a plain rest timer.
  */
 export default function TimerScreen() {
   const router = useRouter();
@@ -25,26 +32,48 @@ export default function TimerScreen() {
   const timer = useRestTimer(90);
 
   const [setType, setSetType] = useState<SetType>('working');
-  const [setsRested, setSetsRested] = useState(0);
+  const [reps, setReps] = useState<number | null>(null);
+  const [sets, setSets] = useState<LoggedSet[]>([]);
   const [restBanked, setRestBanked] = useState(0);
 
-  function handleReset() {
-    // A reset after a completed rest counts as a finished set.
-    if (timer.remaining === 0 || timer.remaining < timer.duration) {
-      setSetsRested((n) => n + 1);
+  /** Whatever rest has elapsed on the current countdown, into the bank. */
+  const bankElapsed = useCallback(() => {
+    if (timer.remaining < timer.duration) {
       setRestBanked((s) => s + (timer.duration - timer.remaining));
     }
+  }, [timer.remaining, timer.duration]);
+
+  /** The one-tap path: record the set just finished, start resting. */
+  const logSet = useCallback(() => {
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    bankElapsed();
+    setSets((prev) => [...prev, { type: setType, reps }]);
+    timer.restart();
+  }, [bankElapsed, setType, reps, timer]);
+
+  const removeSet = useCallback((index: number) => {
+    setSets((prev) => prev.filter((_, i) => i !== index));
+  }, []);
+
+  const handleReset = useCallback(() => {
+    bankElapsed();
     timer.reset();
-  }
+  }, [bankElapsed, timer]);
+
+  const totalReps = useMemo(
+    () => sets.reduce<number>((sum, s) => sum + (s.reps ?? 0), 0),
+    [sets],
+  );
+  const anyReps = sets.some((s) => s.reps !== null);
 
   return (
     <Animated.View entering={FadeIn.duration(140)} exiting={FadeOut.duration(120)} style={styles.scrim}>
       <Pressable style={StyleSheet.absoluteFill} onPress={() => router.back()} accessibilityLabel="Close" />
 
       <Animated.View
-        entering={SlideInDown.springify().damping(20).stiffness(190)}
+        entering={SlideInDown.duration(220)}
         exiting={SlideOutDown.duration(160)}
-        style={[styles.panel, { paddingBottom: insets.bottom + 28 }]}
+        style={[styles.panel, { paddingBottom: insets.bottom + 20 }]}
       >
         <View style={styles.grabber} />
 
@@ -60,56 +89,83 @@ export default function TimerScreen() {
           </Pressable>
         </View>
 
-        <View style={styles.dialWrap}>
-          <CountdownDial
-            remaining={timer.remaining}
-            progress={timer.progress}
-            running={timer.running}
-          />
-        </View>
+        <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
+          <View style={styles.dialWrap}>
+            <CountdownDial
+              remaining={timer.remaining}
+              progress={timer.progress}
+              running={timer.running}
+            />
+          </View>
 
-        <View style={styles.presets}>
-          {PRESETS.map((seconds) => (
-            <Pressable
-              key={seconds}
-              onPress={() => timer.setPreset(seconds)}
-              style={({ pressed }) => [
-                styles.preset,
-                timer.duration === seconds && styles.presetOn,
-                pressed && { backgroundColor: color.surfaceHi },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.presetLabel,
-                  timer.duration === seconds && { color: color.accent },
+          <View style={styles.presets}>
+            {PRESETS.map((seconds) => (
+              <Pressable
+                key={seconds}
+                onPress={() => timer.setPreset(seconds)}
+                style={({ pressed }) => [
+                  styles.preset,
+                  timer.duration === seconds && styles.presetOn,
+                  pressed && { backgroundColor: color.surfaceHi },
                 ]}
               >
-                {seconds < 120 ? `${seconds}s` : `${seconds / 60}m`}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
+                <Text
+                  style={[
+                    styles.presetLabel,
+                    timer.duration === seconds && { color: color.accent },
+                  ]}
+                >
+                  {seconds < 120 ? `${seconds}s` : `${seconds / 60}m`}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
 
-        <View style={styles.transport}>
-          <TransportRow
-            running={timer.running}
-            onToggle={timer.toggle}
-            onReset={handleReset}
-            onNudge={timer.nudge}
-          />
-        </View>
+          <View style={styles.transport}>
+            <TransportRow
+              running={timer.running}
+              onToggle={timer.toggle}
+              onReset={handleReset}
+              onNudge={timer.nudge}
+            />
+          </View>
 
-        <Text style={styles.sectionLabel}>SET TYPE</Text>
-        <SetTypeSelector value={setType} onChange={setSetType} />
+          <Text style={styles.sectionLabel}>THIS SET</Text>
+          <SetTypeSelector value={setType} onChange={setSetType} />
 
-        <View style={{ marginTop: 20 }}>
-          <StrainCard
-            strain={Math.min(21, setsRested * 1.6)}
-            sets={setsRested}
-            totalRestSeconds={restBanked}
-          />
-        </View>
+          <View style={{ marginTop: 12 }}>
+            <RepsPicker value={reps} onChange={setReps} />
+          </View>
+
+          <Pressable
+            accessibilityRole="button"
+            onPress={logSet}
+            style={({ pressed }) => [
+              styles.logCta,
+              pressed && { backgroundColor: alpha(color.accent, 0.22) },
+            ]}
+          >
+            <Text style={styles.logCtaText}>
+              {reps === null ? 'Log set · rest' : `Log set · ${reps} reps`}
+            </Text>
+          </Pressable>
+
+          {sets.length > 0 ? (
+            <>
+              <Text style={styles.sectionLabel}>SESSION</Text>
+              <SetLogList sets={sets} onRemove={removeSet} />
+            </>
+          ) : null}
+
+          <View style={{ marginTop: sets.length > 0 ? 14 : 22 }}>
+            <StrainCard
+              strain={Math.min(21, sets.length * 1.6)}
+              sets={sets.length}
+              totalReps={anyReps ? totalReps : null}
+              totalRestSeconds={restBanked}
+            />
+          </View>
+        </ScrollView>
       </Animated.View>
     </Animated.View>
   );
@@ -119,6 +175,7 @@ const styles = StyleSheet.create({
   scrim: { flex: 1, justifyContent: 'flex-end', backgroundColor: alpha(color.scrim, 0.72) },
   panel: {
     width: '100%',
+    maxHeight: '92%',
     backgroundColor: color.bgRaised,
     borderTopWidth: 1,
     borderTopColor: border.soft,
@@ -151,7 +208,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  dialWrap: { alignItems: 'center', marginTop: 10 },
+  dialWrap: { alignItems: 'center', marginTop: 8 },
   presets: { flexDirection: 'row', gap: 8, justifyContent: 'center', marginTop: 12 },
   preset: {
     minWidth: 54,
@@ -166,9 +223,9 @@ const styles = StyleSheet.create({
   presetOn: toggleTint(color.accent),
   presetLabel: { fontSize: 12.5, fontWeight: '700', color: color.textTertiary },
 
-  transport: { alignItems: 'center', marginTop: 20 },
+  transport: { alignItems: 'center', marginTop: 18 },
   sectionLabel: {
-    marginTop: 26,
+    marginTop: 22,
     marginBottom: 12,
     fontSize: type.eyebrow.fontSize,
     fontWeight: '700',
@@ -176,4 +233,17 @@ const styles = StyleSheet.create({
     color: color.muted,
     textAlign: 'center',
   },
+
+  /** Accent-outline, not solid lime — the play button stays the screen's one
+   *  glowing action, and this reads as its strong sibling. */
+  logCta: {
+    marginTop: 14,
+    height: 48,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...toggleTint(color.accent),
+    borderWidth: 1,
+  },
+  logCtaText: { fontSize: 14.5, fontWeight: '800', letterSpacing: -0.2, color: color.accent },
 });

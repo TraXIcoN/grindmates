@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BodyMap } from '@/components/log/BodyMap';
 import { EffortSheet } from '@/components/log/EffortSheet';
+import { FocusPanel } from '@/components/log/FocusPanel';
 import { MuscleChip } from '@/components/log/MuscleChip';
 import { SelectionSummary } from '@/components/log/SelectionSummary';
 import { StickyCta } from '@/components/log/StickyCta';
@@ -50,6 +51,7 @@ export default function LogScreen() {
   } = useApp();
 
   const [side, setSide] = useState<'front' | 'back'>('front');
+  const [focus, setFocus] = useState<MuscleGroup | null>(null);
   const [sheetFor, setSheetFor] = useState<MuscleGroup | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -69,6 +71,41 @@ export default function LogScreen() {
   const cycle = useCallback(
     (muscle: MuscleGroup) => setTier(muscle, nextTier(effort[muscle])),
     [effort, setTier],
+  );
+
+  /** Tap a region: zoom in on it. Tap it again: zoom back out. */
+  const pickRegion = useCallback((muscle: MuscleGroup) => {
+    void Haptics.selectionAsync();
+    setFocus((current) => (current === muscle ? null : muscle));
+  }, []);
+
+  const switchSide = useCallback((s: 'front' | 'back') => {
+    void Haptics.selectionAsync();
+    setSide(s);
+    setFocus(null);
+  }, []);
+
+  /**
+   * Exercises write into the note, so the note stays the one record of what
+   * was done. Tap adds, tap again removes; hand-edits to the note simply
+   * change which chips read as selected.
+   */
+  const toggleExercise = useCallback(
+    (name: string) => {
+      void Haptics.selectionAsync();
+      const cap = draft.caption;
+      if (cap.includes(name)) {
+        const next = cap
+          .replace(`, ${name}`, '')
+          .replace(name, '')
+          .replace(/^[,\s]+/, '')
+          .trim();
+        patchDraft({ caption: next });
+      } else {
+        patchDraft({ caption: cap.trim() ? `${cap.trim()}, ${name}` : name });
+      }
+    },
+    [draft.caption, patchDraft],
   );
 
   /**
@@ -190,16 +227,14 @@ export default function LogScreen() {
           </View>
         ) : null}
 
-        {/* Body map — front/back, with the chip list underneath as the fallback. */}
-        <View style={styles.mapRow}>
+        {/* Body map — tap a region to zoom in on it; effort and exercise
+            suggestions appear beneath, inside the same card. */}
+        <View style={styles.mapCard}>
           <View style={styles.sideToggle}>
             {(['front', 'back'] as const).map((s) => (
               <Pressable
                 key={s}
-                onPress={() => {
-                  void Haptics.selectionAsync();
-                  setSide(s);
-                }}
+                onPress={() => switchSide(s)}
                 style={[styles.sideBtn, side === s && styles.sideBtnOn]}
               >
                 <Text style={[styles.sideLabel, side === s && { color: color.accent }]}>
@@ -209,7 +244,22 @@ export default function LogScreen() {
             ))}
           </View>
 
-          <BodyMap side={side} effort={effort} onPick={(m) => setSheetFor(m)} width={150} />
+          <View style={styles.mapWrap}>
+            <BodyMap side={side} effort={effort} focus={focus} onPick={pickRegion} width={168} />
+          </View>
+
+          {focus ? (
+            <FocusPanel
+              muscle={focus}
+              tier={effort[focus]}
+              caption={draft.caption}
+              onTier={(tier) => setTier(focus, tier)}
+              onToggleExercise={toggleExercise}
+              onDismiss={() => setFocus(null)}
+            />
+          ) : (
+            <Text style={styles.mapHint}>Tap a muscle to zoom in.</Text>
+          )}
         </View>
 
         <Text style={styles.sectionLabel}>ALL GROUPS</Text>
@@ -315,20 +365,27 @@ const styles = StyleSheet.create({
   previewClear: { paddingVertical: 11, alignItems: 'center', backgroundColor: color.bgRaised },
   previewClearText: { fontSize: 12.5, fontWeight: '700', color: color.muted },
 
-  mapRow: {
+  mapCard: {
     marginTop: 22,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 18,
     padding: 16,
     borderRadius: radius.card,
     backgroundColor: color.bgRaised,
     borderWidth: 1,
     borderColor: border.faint,
   },
-  sideToggle: { flex: 1, gap: 8 },
+  mapWrap: { alignItems: 'center', marginTop: 14 },
+  mapHint: {
+    marginTop: 12,
+    fontSize: 12,
+    fontWeight: '600',
+    color: color.textFaint,
+    textAlign: 'center',
+  },
+  sideToggle: { flexDirection: 'row', justifyContent: 'center', gap: 8 },
   sideBtn: {
-    height: 40,
+    height: 34,
+    minWidth: 86,
+    paddingHorizontal: 18,
     borderRadius: radius.pill,
     backgroundColor: color.surface,
     borderWidth: 1,

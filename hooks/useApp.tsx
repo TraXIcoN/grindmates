@@ -10,7 +10,7 @@ import React, {
 } from 'react';
 
 import { createGroup, fetchMyGroups, fetchProfile } from '@/lib/api';
-import { DEMO, DEMO_USER_ID, subscribeDemo } from '@/lib/demo';
+import { DEMO, DEMO_USER_ID, ensureDemoProfile, subscribeDemo } from '@/lib/demo';
 import { supabase } from '@/lib/supabase';
 import { EMPTY_DRAFT, type CheckInDraft, type FeedItem, type Group, type Profile } from '@/lib/types';
 
@@ -102,10 +102,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   /* ---------------------------------------------------------------- auth -- */
 
   useEffect(() => {
-    // Demo mode is signed in from the first frame — there is no session to read
-    // and no auth server to listen to.
+    // Demo mode: nobody is signed in until they create an account. There is no
+    // persisted session to read and no auth server to listen to.
     if (DEMO) {
-      setSession(DEMO_SESSION);
       setBooting(false);
       return;
     }
@@ -225,6 +224,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const signInWithEmail = useCallback(async (email: string, password: string) => {
     if (DEMO) {
+      // First sign-in with no prior sign-up still needs a profile; derive a
+      // name from the email rather than inventing a person.
+      ensureDemoProfile(email.split('@')[0] ?? 'you');
       setSession(DEMO_SESSION);
       return null;
     }
@@ -235,6 +237,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const signUpWithEmail = useCallback(
     async (email: string, password: string, username: string) => {
       if (DEMO) {
+        ensureDemoProfile(username, true);
         setSession(DEMO_SESSION);
         return { error: null, needsConfirmation: false };
       }
@@ -253,6 +256,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const signInAnonymously = useCallback(async () => {
     if (DEMO) {
+      ensureDemoProfile('you');
       setSession(DEMO_SESSION);
       return null;
     }

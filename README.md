@@ -16,9 +16,10 @@ npx expo start
 ```
 
 That runs immediately, with no backend: when `EXPO_PUBLIC_SUPABASE_URL` is unset the
-app serves in-memory fixtures from `lib/demo.ts` — two groups, eight members, a few
-check-ins — so every screen is explorable on first clone. Reactions, group switching,
-and posting a check-in all work against the in-memory store; nothing is persisted.
+app runs on an in-memory store (`lib/demo.ts`). There is no fake cast and no seeded
+feed — a visitor walks the same path a real user does: create an account, start a
+crew, post the first check-in. Reactions, crew switching and posting all work against
+the store; nothing is persisted across a reload.
 
 To point it at a real project:
 
@@ -181,9 +182,24 @@ Two details in that setup are load-bearing:
 
 ---
 
+## In-workout flow
+
+- **Body map zoom.** Tapping a region zooms the figure toward it (one 220ms ease-out,
+  no spring) and opens an inline panel: effort tiers for that muscle, then exercise
+  suggestions from `lib/exercises.ts`. Tapping an exercise tags it into the note —
+  tap again to remove — so the note stays the single record of what was done.
+- **Set logging on the rest timer.** Reps are an option, not a demand: preset chips
+  (4–15) with ±1 fine adjust, and one accent CTA that logs the set and starts the
+  rest together. The presets cover the real pattern of an opener at 10–15 reps
+  followed by heavy sets around 4. Logged sets show as session tiles (long-press to
+  remove one); the strain card totals sets, reps, and time under rest. The play
+  button alone is still a plain rest timer.
+- **Crews.** A new account lands on an empty feed whose single lime action starts a
+  crew (name + emblem); the group switcher menu carries a "New crew" row after that.
+
 ## Not built
 
 - Comment threads. Counts render on the reaction bar; there is no `comments` table.
 - The nudge action is inert — it dismisses, it does not notify.
-- No group create/join screen. `addGroup()` is wired in `useApp` and works; it just
-  has no UI yet.
+- No join-by-invite flow — crews can be created, but adding members still means
+  inserting `group_members` rows directly.

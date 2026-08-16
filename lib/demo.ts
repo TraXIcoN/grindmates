@@ -1,6 +1,5 @@
 import Constants from 'expo-constants';
 
-import { DEMO_PHOTOS } from './demoPhotos';
 import type {
   CheckIn,
   EffortLevel,
@@ -25,188 +24,36 @@ const configuredUrl = process.env.EXPO_PUBLIC_SUPABASE_URL ?? extra.supabaseUrl 
 /**
  * True when no real Supabase project is configured.
  *
- * Every network call site checks this first and serves the fixtures below
- * instead. That makes `npx expo start` work with zero setup, and lets the
- * GitHub Pages build show the actual app rather than stranding a visitor on a
- * sign-in screen wired to a backend that does not exist.
+ * Every network call site checks this first and works against the in-memory
+ * store below instead, so `npx expo start` and the static web build work with
+ * zero setup. There is no fake cast and no seeded feed: a visitor walks the
+ * same path a real user would — create an account, start a crew, post.
  *
  * The moment EXPO_PUBLIC_SUPABASE_URL points at a real project, every one of
  * those branches switches off and nothing in this file runs again.
  */
 export const DEMO = !configuredUrl || configuredUrl.includes('YOUR-PROJECT');
 
-/* -------------------------------------------------------------------------- */
-/* Clock                                                                      */
-/* -------------------------------------------------------------------------- */
-
-/**
- * `n` hours ago — but never earlier than 00:20 today.
- *
- * Without the clamp the fixtures drift across local midnight: open the demo at
- * 03:00 and a "5h ago" post lands on yesterday, so the feed header counts one
- * check-in instead of two and the nudge card names the wrong people.
- */
-function hoursAgoToday(hours: number): string {
-  const now = Date.now();
-  const floor = new Date();
-  floor.setHours(0, 20, 0, 0);
-  return new Date(Math.max(now - hours * 3_600_000, floor.getTime())).toISOString();
-}
-
-function daysAgo(days: number, atHour = 18): string {
-  const d = new Date();
-  d.setDate(d.getDate() - days);
-  d.setHours(atHour, 12, 0, 0);
-  return d.toISOString();
-}
-
-/* -------------------------------------------------------------------------- */
-/* Cast                                                                       */
-/* -------------------------------------------------------------------------- */
-
 export const DEMO_USER_ID = 'demo-you';
 
-const you: Profile = {
-  id: DEMO_USER_ID,
-  username: 'You',
-  avatar_url: null,
-  streak_count: 4,
-  created_at: daysAgo(38, 9),
-};
-
-const cast: Profile[] = [
-  you,
-  { id: 'demo-ryan', username: 'Ryan M.', avatar_url: null, streak_count: 12, created_at: daysAgo(64, 9) },
-  { id: 'demo-sofia', username: 'Sofia D.', avatar_url: null, streak_count: 7, created_at: daysAgo(51, 9) },
-  { id: 'demo-marcus', username: 'Marcus T.', avatar_url: null, streak_count: 2, created_at: daysAgo(30, 9) },
-  { id: 'demo-priya', username: 'Priya R.', avatar_url: null, streak_count: 0, created_at: daysAgo(21, 9) },
-  { id: 'demo-devon', username: 'Devon K.', avatar_url: null, streak_count: 5, created_at: daysAgo(45, 9) },
-  { id: 'demo-alina', username: 'Alina W.', avatar_url: null, streak_count: 1, created_at: daysAgo(12, 9) },
-  { id: 'demo-jonas', username: 'Jonas B.', avatar_url: null, streak_count: 9, created_at: daysAgo(58, 9) },
-];
-
-const CREW: Group = {
-  id: 'demo-crew',
-  name: '6AM Crew',
-  emblem: '🔥',
-  owner_id: 'demo-ryan',
-  created_at: daysAgo(64, 9),
-  member_count: 8,
-};
-
-const CIRCLE: Group = {
-  id: 'demo-circle',
-  name: 'Iron Circle',
-  emblem: '⚡',
-  owner_id: DEMO_USER_ID,
-  created_at: daysAgo(20, 9),
-  member_count: 5,
-};
-
-/** group id -> roster. The 6AM Crew is everyone; Iron Circle is a subset. */
-const roster: Record<string, string[]> = {
-  [CREW.id]: cast.map((p) => p.id),
-  [CIRCLE.id]: [DEMO_USER_ID, 'demo-ryan', 'demo-devon', 'demo-jonas', 'demo-alina'],
-};
-
 /* -------------------------------------------------------------------------- */
-/* Store                                                                      */
+/* Store — starts empty                                                       */
 /* -------------------------------------------------------------------------- */
 
 interface DemoRow extends CheckIn {
   muscles: Array<{ muscle_group: MuscleGroup; effort_level: EffortLevel }>;
-  /** user_id -> the reactions that user has given. */
   reactions: Array<{ user_id: string; type: ReactionType }>;
   comment_count: number;
 }
 
-function seedRows(): DemoRow[] {
-  return [
-    {
-      id: 'demo-post-ryan',
-      user_id: 'demo-ryan',
-      group_id: CREW.id,
-      photo_url: DEMO_PHOTOS.rack,
-      caption: 'Bench moved today. 3 plates for a clean triple.',
-      workout_label: 'Push A',
-      strain: 9.8,
-      created_at: hoursAgoToday(2),
-      muscles: [
-        { muscle_group: 'chest', effort_level: 3 },
-        { muscle_group: 'triceps', effort_level: 2 },
-        { muscle_group: 'shoulders', effort_level: 2 },
-      ],
-      reactions: [
-        { user_id: 'demo-sofia', type: 'fire' },
-        { user_id: 'demo-devon', type: 'fire' },
-        { user_id: 'demo-jonas', type: 'fire' },
-        { user_id: 'demo-alina', type: 'five' },
-      ],
-      comment_count: 3,
-    },
-    {
-      id: 'demo-post-sofia',
-      user_id: 'demo-sofia',
-      group_id: CREW.id,
-      photo_url: DEMO_PHOTOS.dumbbells,
-      caption: 'Legs before sunrise so nothing else can cancel it.',
-      workout_label: 'Lower',
-      strain: 12.6,
-      created_at: hoursAgoToday(5),
-      muscles: [
-        { muscle_group: 'quads', effort_level: 3 },
-        { muscle_group: 'glutes', effort_level: 3 },
-        { muscle_group: 'hamstrings', effort_level: 2 },
-        { muscle_group: 'calves', effort_level: 1 },
-      ],
-      reactions: [
-        { user_id: 'demo-ryan', type: 'fire' },
-        { user_id: 'demo-marcus', type: 'five' },
-        { user_id: 'demo-jonas', type: 'five' },
-      ],
-      comment_count: 1,
-    },
-    {
-      id: 'demo-post-marcus',
-      user_id: 'demo-marcus',
-      group_id: CREW.id,
-      photo_url: null,
-      caption: 'No photo — hotel gym, one dumbbell rack, still counted.',
-      workout_label: 'Pull',
-      strain: 5.6,
-      created_at: daysAgo(1, 19),
-      muscles: [
-        { muscle_group: 'back', effort_level: 2 },
-        { muscle_group: 'biceps', effort_level: 2 },
-      ],
-      reactions: [{ user_id: 'demo-ryan', type: 'five' }],
-      comment_count: 0,
-    },
-    {
-      id: 'demo-post-jonas',
-      user_id: 'demo-jonas',
-      group_id: CIRCLE.id,
-      photo_url: DEMO_PHOTOS.rack,
-      caption: 'Deadlift day. Back is fine, hands are not.',
-      workout_label: 'Deadlift',
-      strain: 11.2,
-      created_at: hoursAgoToday(7),
-      muscles: [
-        { muscle_group: 'back', effort_level: 3 },
-        { muscle_group: 'hamstrings', effort_level: 3 },
-        { muscle_group: 'glutes', effort_level: 2 },
-      ],
-      reactions: [{ user_id: 'demo-devon', type: 'fire' }],
-      comment_count: 2,
-    },
-  ];
-}
-
 const store = {
-  profiles: [...cast],
-  groups: [CREW, CIRCLE],
-  rows: seedRows(),
+  profiles: [] as Profile[],
+  groups: [] as Group[],
+  rows: [] as DemoRow[],
 };
+
+/** group id -> member ids. */
+const roster: Record<string, string[]> = {};
 
 /* --------------------------------------------------------------- listeners -- */
 
@@ -225,6 +72,32 @@ export function subscribeDemo(fn: Listener): () => void {
 
 function emit(): void {
   for (const fn of listeners) fn();
+}
+
+/* -------------------------------------------------------------------------- */
+/* Auth                                                                       */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Creates the local profile on sign-up (or first sign-in). `overwriteName`
+ * distinguishes "create account" — which owns the username — from a later
+ * sign-in, which must not clobber it.
+ */
+export function ensureDemoProfile(username: string, overwriteName = false): Profile {
+  let me = store.profiles.find((p) => p.id === DEMO_USER_ID);
+  if (!me) {
+    me = {
+      id: DEMO_USER_ID,
+      username: username.trim() || 'you',
+      avatar_url: null,
+      streak_count: 0,
+      created_at: new Date().toISOString(),
+    };
+    store.profiles.push(me);
+  } else if (overwriteName && username.trim()) {
+    me.username = username.trim();
+  }
+  return me;
 }
 
 /* -------------------------------------------------------------------------- */

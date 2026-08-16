@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CheckInFab } from '@/components/feed/CheckInFab';
 import { ComposerSheet } from '@/components/feed/ComposerSheet';
+import { CreateGroupSheet } from '@/components/feed/CreateGroupSheet';
 import { FeedCard } from '@/components/feed/FeedCard';
 import { GroupSwitcher } from '@/components/feed/GroupSwitcher';
 import { NudgeCard } from '@/components/feed/NudgeCard';
@@ -49,6 +50,7 @@ export default function FeedScreen() {
   );
 
   const [composerOpen, setComposerOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
   const [pending, setPending] = useState<Array<Pick<Profile, 'id' | 'username' | 'avatar_url'>>>([]);
 
   // Who still owes today's snap — drives the nudge card and the eyebrow count.
@@ -58,13 +60,14 @@ export default function FeedScreen() {
       return;
     }
     let alive = true;
-    fetchPendingMembers(activeGroup.id, checkedInUserIds)
+    // You can see who you owe — you cannot owe yourself a nudge.
+    fetchPendingMembers(activeGroup.id, viewerId ? [...checkedInUserIds, viewerId] : checkedInUserIds)
       .then((rows) => alive && setPending(rows))
       .catch(() => alive && setPending([]));
     return () => {
       alive = false;
     };
-  }, [activeGroup, checkedInUserIds]);
+  }, [activeGroup, checkedInUserIds, viewerId]);
 
   const todayCount = useMemo(() => rows.filter((i) => isToday(i.created_at)).length, [rows]);
   const memberCount = activeGroup?.member_count ?? todayCount;
@@ -108,7 +111,12 @@ export default function FeedScreen() {
 
       {/* Top bar — group switcher opposite the streak. */}
       <View style={[styles.bar, { paddingTop: insets.top + 12 }]}>
-        <GroupSwitcher groups={groups} active={activeGroup} onSelect={setActiveGroup} />
+        <GroupSwitcher
+          groups={groups}
+          active={activeGroup}
+          onSelect={setActiveGroup}
+          onCreate={() => setCreateOpen(true)}
+        />
 
         <View style={styles.barRight}>
           <Pressable
@@ -159,10 +167,15 @@ export default function FeedScreen() {
         ListFooterComponent={
           <NudgeCard members={pending} onNudge={() => setComposerOpen(false)} />
         }
-        ListEmptyComponent={<EmptyFeed hasGroup={!!activeGroup} />}
+        ListEmptyComponent={
+          <EmptyFeed hasGroup={!!activeGroup} onCreate={() => setCreateOpen(true)} />
+        }
       />
 
-      <CheckInFab onPress={() => setComposerOpen(true)} />
+      <CheckInFab
+        label={activeGroup ? 'Check in' : 'Start a crew'}
+        onPress={() => (activeGroup ? setComposerOpen(true) : setCreateOpen(true))}
+      />
 
       <ComposerSheet
         open={composerOpen}
@@ -171,21 +184,32 @@ export default function FeedScreen() {
         onLibrary={() => void openLibrary()}
         onSkipPhoto={skipPhoto}
       />
+
+      <CreateGroupSheet open={createOpen} onClose={() => setCreateOpen(false)} />
     </View>
   );
 }
 
-function EmptyFeed({ hasGroup }: { hasGroup: boolean }) {
+function EmptyFeed({ hasGroup, onCreate }: { hasGroup: boolean; onCreate: () => void }) {
   return (
     <View style={styles.empty}>
       <Text style={styles.emptyTitle}>
-        {hasGroup ? 'Nobody has checked in yet.' : 'You are not in a group yet.'}
+        {hasGroup ? 'Nobody has checked in yet.' : 'No crew yet.'}
       </Text>
       <Text style={styles.emptyBody}>
         {hasGroup
           ? 'Be the one who sets the pace — hit Check in below.'
-          : 'Create a crew of 4–12 and the feed fills itself.'}
+          : 'Vitals runs on small closed crews. Start yours, then bring 4–12 people in.'}
       </Text>
+      {!hasGroup ? (
+        <Pressable
+          accessibilityRole="button"
+          onPress={onCreate}
+          style={({ pressed }) => [styles.emptyCta, pressed && { backgroundColor: color.surfaceHi }]}
+        >
+          <Text style={styles.emptyCtaText}>Create a crew</Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -247,4 +271,16 @@ const styles = StyleSheet.create({
     color: color.muted,
     maxWidth: 260,
   },
+  emptyCta: {
+    marginTop: 18,
+    height: 44,
+    paddingHorizontal: 22,
+    borderRadius: radius.pill,
+    backgroundColor: color.surface,
+    borderWidth: 1,
+    borderColor: border.soft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyCtaText: { fontSize: 13.5, fontWeight: '700', color: color.text },
 });

@@ -61,6 +61,13 @@ export function useRestTimer(initial: number = DEFAULT_SECONDS) {
     setRemaining(duration);
   }, [duration]);
 
+  /** Fresh countdown from the top, already running — the one-tap "log set and
+   *  rest" path uses this so logging never needs a second press of play. */
+  const restart = useCallback(() => {
+    setRemaining(duration);
+    setRunning(true);
+  }, [duration]);
+
   /** ±15s nudge. Adjusts the base duration too, so reset keeps the new length. */
   const nudge = useCallback((delta: number) => {
     void Haptics.selectionAsync();
@@ -77,7 +84,7 @@ export function useRestTimer(initial: number = DEFAULT_SECONDS) {
 
   const progress = duration > 0 ? remaining / duration : 0;
 
-  return { duration, remaining, running, progress, start, pause, toggle, reset, nudge, setPreset };
+  return { duration, remaining, running, progress, start, pause, toggle, reset, restart, nudge, setPreset };
 }
 
 export function formatClock(totalSeconds: number): string {

@@ -4,6 +4,8 @@ import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 
+import { Plus } from 'lucide-react-native';
+
 import { ChevronDownIcon } from '@/components/ui/icons';
 import { border, color, emblemGradients, menuShadow, radius, type } from '@/lib/theme';
 import type { Group } from '@/lib/types';
@@ -31,13 +33,15 @@ interface Props {
   groups: Group[];
   active: Group | null;
   onSelect: (group: Group) => void;
+  /** Opens the create-crew sheet. With no groups, the pill goes straight here. */
+  onCreate?: () => void;
 }
 
 /**
  * A pill, not a title — it reads as tappable. Opens a floating menu anchored
  * under the bar (top 110, left 20, width 236).
  */
-export function GroupSwitcher({ groups, active, onSelect }: Props) {
+export function GroupSwitcher({ groups, active, onSelect, onCreate }: Props) {
   const [open, setOpen] = useState(false);
   const activeIndex = Math.max(0, groups.findIndex((g) => g.id === active?.id));
 
@@ -48,6 +52,12 @@ export function GroupSwitcher({ groups, active, onSelect }: Props) {
         accessibilityState={{ expanded: open }}
         onPress={() => {
           void Haptics.selectionAsync();
+          // An empty menu helps nobody — with no crews yet, the pill's only
+          // meaningful action is starting one.
+          if (groups.length === 0 && onCreate) {
+            onCreate();
+            return;
+          }
           setOpen((v) => !v);
         }}
         style={({ pressed }) => [styles.pill, pressed && { backgroundColor: color.surfaceHi }]}
@@ -88,6 +98,28 @@ export function GroupSwitcher({ groups, active, onSelect }: Props) {
                 <Text style={styles.rowCount}>{group.member_count ?? '—'}</Text>
               </Pressable>
             ))}
+
+            {onCreate ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="New crew"
+                onPress={() => {
+                  void Haptics.selectionAsync();
+                  setOpen(false);
+                  onCreate();
+                }}
+                style={({ pressed }) => [
+                  styles.row,
+                  styles.createRow,
+                  pressed && { backgroundColor: color.surface },
+                ]}
+              >
+                <View style={styles.plusBox}>
+                  <Plus size={13} color={color.textTertiary} strokeWidth={2.4} />
+                </View>
+                <Text style={styles.createLabel}>New crew</Text>
+              </Pressable>
+            ) : null}
           </Animated.View>
         </>
       ) : null}
@@ -150,4 +182,22 @@ const styles = StyleSheet.create({
   },
   rowName: { fontSize: 13.5, fontWeight: '600', color: color.text, flex: 1 },
   rowCount: { fontSize: 11, fontWeight: '600', color: color.muted },
+
+  createRow: {
+    marginTop: 4,
+    borderTopWidth: 1,
+    borderTopColor: border.faint,
+    borderRadius: 0,
+    borderBottomLeftRadius: 11,
+    borderBottomRightRadius: 11,
+  },
+  plusBox: {
+    width: 24,
+    height: 24,
+    borderRadius: 8,
+    backgroundColor: color.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  createLabel: { fontSize: 13.5, fontWeight: '600', color: color.textTertiary, flex: 1 },
 });
