@@ -2,10 +2,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Platform,
   Pressable,
   ScrollView,
-  Share,
   StyleSheet,
   Text,
   View,
@@ -17,6 +15,7 @@ import { GoalRing } from '@/components/progress/GoalRing';
 import { Heatmap } from '@/components/progress/Heatmap';
 import { SplitBars } from '@/components/progress/SplitBars';
 import { WeightCard } from '@/components/progress/WeightCard';
+import { StrengthCard } from '@/components/progress/StrengthCard';
 import { AmbientGlow } from '@/components/ui/AmbientGlow';
 import { Avatar } from '@/components/ui/Avatar';
 import { useApp } from '@/hooks/useApp';
@@ -27,7 +26,7 @@ import {
   type HistoryItem,
   type WeightEntry,
 } from '@/lib/api';
-import { DEMO, demoExport, demoWipe } from '@/lib/demo';
+import { useTraining } from '@/hooks/useTraining';
 import { checkInsThisWeek, muscleSplit, records } from '@/lib/stats';
 import { border, color, layout, radius, type } from '@/lib/theme';
 
@@ -41,14 +40,15 @@ const GOAL_KEY = 'grindmates.weeklyGoal';
 export default function ProgressScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { session, profile, signOut } = useApp();
+  const { session, profile } = useApp();
+  // Subscribing here re-renders the strength section when sessions finish.
+  useTraining();
   const userId = session?.user?.id ?? null;
 
   const [items, setItems] = useState<HistoryItem[]>([]);
   const [weights, setWeights] = useState<WeightEntry[]>([]);
   const [goal, setGoal] = useState(4);
   const [weightBusy, setWeightBusy] = useState(false);
-  const [confirmWipe, setConfirmWipe] = useState(false);
 
   useEffect(() => {
     if (!userId) return;
@@ -91,41 +91,6 @@ export default function ProgressScreen() {
     },
     [userId],
   );
-
-  /** Local-mode backup: a JSON file on web, the share sheet elsewhere. */
-  const exportData = useCallback(async () => {
-    const json = demoExport();
-    if (Platform.OS === 'web') {
-      const doc = (globalThis as { document?: Document }).document;
-      if (!doc) return;
-      const blob = new Blob([json], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = doc.createElement('a');
-      a.href = url;
-      a.download = `grindmates-backup-${new Date().toISOString().slice(0, 10)}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-      return;
-    }
-    await Share.share({ message: json }).catch(() => {});
-  }, []);
-
-  const wipe = useCallback(async () => {
-    if (!confirmWipe) {
-      setConfirmWipe(true);
-      // Arm for a few seconds, then stand down — no accidental wipes.
-      setTimeout(() => setConfirmWipe(false), 4000);
-      return;
-    }
-    await demoWipe();
-    await signOut();
-    router.replace('/(auth)/sign-in');
-  }, [confirmWipe, signOut, router]);
-
-  const leave = useCallback(async () => {
-    await signOut();
-    router.replace('/(auth)/sign-in');
-  }, [signOut, router]);
 
   return (
     <View style={styles.screen}>
@@ -183,30 +148,14 @@ export default function ProgressScreen() {
           <SplitBars rows={split} />
         </View>
 
+        <Text style={styles.sectionLabel}>STRENGTH</Text>
+        <View style={styles.card}>
+          <StrengthCard />
+        </View>
+
         <Text style={styles.sectionLabel}>BODYWEIGHT</Text>
         <View style={styles.card}>
           <WeightCard entries={weights} busy={weightBusy} onLog={saveWeight} />
-        </View>
-
-        <Text style={styles.sectionLabel}>ACCOUNT</Text>
-        <View style={styles.card}>
-          {DEMO ? (
-            <>
-              <RowBtn label="Export data (JSON)" onPress={() => void exportData()} />
-              <View style={styles.divider} />
-            </>
-          ) : null}
-          <RowBtn label="Sign out" onPress={() => void leave()} />
-          {DEMO ? (
-            <>
-              <View style={styles.divider} />
-              <RowBtn
-                label={confirmWipe ? 'Tap again to delete everything' : 'Delete everything'}
-                danger
-                onPress={() => void wipe()}
-              />
-            </>
-          ) : null}
         </View>
 
         <View style={{ height: 40 }} />
@@ -226,18 +175,6 @@ function Tile({ label, value, hint }: { label: string; value: string; hint?: str
         </Text>
       ) : null}
     </View>
-  );
-}
-
-function RowBtn({ label, danger, onPress }: { label: string; danger?: boolean; onPress: () => void }) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      onPress={onPress}
-      style={({ pressed }) => [styles.rowBtn, pressed && { backgroundColor: color.surface }]}
-    >
-      <Text style={[styles.rowBtnText, danger && { color: color.tier3 }]}>{label}</Text>
-    </Pressable>
   );
 }
 
@@ -303,7 +240,4 @@ const styles = StyleSheet.create({
   },
   tileHint: { marginTop: 2, fontSize: 11, fontWeight: '600', color: color.textTertiary },
 
-  divider: { height: 1, backgroundColor: border.faint },
-  rowBtn: { paddingVertical: 13, paddingHorizontal: 4, borderRadius: 10 },
-  rowBtnText: { fontSize: 14, fontWeight: '700', color: color.textSecondary },
 });

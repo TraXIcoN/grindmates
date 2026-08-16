@@ -13,6 +13,7 @@ import { SetTypeSelector } from '@/components/timer/SetTypeSelector';
 import { StrainCard } from '@/components/timer/StrainCard';
 import { TransportRow } from '@/components/timer/TransportRow';
 import { useRestTimer } from '@/hooks/useRestTimer';
+import { getRestDefault } from '@/lib/prefs';
 import { alpha, border, color, radius, toggleTint, type } from '@/lib/theme';
 import type { SetType } from '@/lib/types';
 
@@ -30,6 +31,12 @@ export default function TimerScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const timer = useRestTimer(90);
+
+  // Default rest length is a preference (Settings).
+  React.useEffect(() => {
+    void getRestDefault().then((s) => timer.setPreset(s));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [setType, setSetType] = useState<SetType>('working');
   const [reps, setReps] = useState<number | null>(null);

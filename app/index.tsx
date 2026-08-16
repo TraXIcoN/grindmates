@@ -13,5 +13,5 @@ export default function Index() {
   const { session, booting } = useApp();
 
   if (booting) return <View style={{ flex: 1, backgroundColor: color.bg }} />;
-  return <Redirect href={session ? '/(app)/feed' : '/(auth)/sign-in'} />;
+  return <Redirect href={session ? '/(app)/(tabs)/feed' : '/(auth)/sign-in'} />;
 }

@@ -199,6 +199,28 @@ Two details in that setup are load-bearing:
 
 ---
 
+## The shell
+
+Five tabs: **Home** (the crew feed — the social core), **Train**, **Library**,
+**Progress**, **Settings**. Camera, log, session, timer, tools, and the routine
+editor stack above them.
+
+- **Train** — pick muscles on the anatomical body map (drawn from scratch for this
+  app; each group is its own shape), get a session picked for you — two
+  compound-first moves per muscle — then edit it set by set. Routines live here
+  too: name a split, schedule weekdays, and the one due today surfaces ready to
+  start. A live session survives an app kill or reboot.
+- **Session** — exercise cards with per-set weight × reps logging (each new set
+  defaults to the previous one), an inline rest bar that starts itself after every
+  logged set, add/remove exercises mid-workout. Finishing shows the summary — sets,
+  reps, volume, time, best sets — and rolls straight into the crew check-in with
+  muscles auto-tagged from what was trained and the note carrying the best sets.
+  That bridge is the point: the log is private, the check-in is the shared artifact.
+- **Library** — every exercise, searchable, filterable by muscle, favourites pinned
+  to the top; with a session live, one tap adds an exercise to it.
+- **Settings** — profile, crew code sharing and join, default rest length, data
+  export, sign out, delete.
+
 ## In-workout flow
 
 - **Body map zoom.** Tapping a region zooms the figure toward it (one 220ms ease-out,

@@ -46,7 +46,7 @@ export default function SignIn() {
       setError(message);
       return;
     }
-    router.replace('/(app)/feed');
+    router.replace('/(app)/(tabs)/feed');
   }
 
   async function submitSignUp() {
@@ -70,7 +70,7 @@ export default function SignIn() {
       setMode('in');
       return;
     }
-    router.replace('/(app)/feed');
+    router.replace('/(app)/(tabs)/feed');
   }
 
   return (

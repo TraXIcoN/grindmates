@@ -1,9 +1,9 @@
 import type { MuscleGroup } from './types';
 
 /**
- * The 10 major groups from the brief, in the order they appear on the picker
- * grid. `side` drives which body map they sit on; `x`/`y` are percentages of
- * the body-map box so regions scale with the container.
+ * The 10 major groups from the brief. `side` drives which body map they sit
+ * on; positions are percentages of the body-map box so regions scale with the
+ * container, and they are calibrated to the drawn anatomy in BodyMap.
  */
 export interface MuscleMeta {
   key: MuscleGroup;
@@ -15,19 +15,25 @@ export interface MuscleMeta {
   /** Region size, in % of the box. */
   w: number;
   h: number;
+  /**
+   * Bilateral muscles (arms, calves, delts) get two hit targets at x ± pair
+   * instead of one band across the torso — a band would steal centre taps
+   * from chest/back.
+   */
+  pair?: number;
 }
 
 export const MUSCLES: MuscleMeta[] = [
-  { key: 'chest', label: 'Chest', side: 'front', x: 50, y: 26, w: 42, h: 11 },
-  { key: 'shoulders', label: 'Shoulders', side: 'front', x: 50, y: 19, w: 62, h: 8 },
-  { key: 'biceps', label: 'Biceps', side: 'front', x: 50, y: 34, w: 74, h: 10 },
-  { key: 'core', label: 'Core', side: 'front', x: 50, y: 39, w: 34, h: 14 },
-  { key: 'quads', label: 'Quads', side: 'front', x: 50, y: 62, w: 44, h: 18 },
-  { key: 'back', label: 'Back', side: 'back', x: 50, y: 29, w: 46, h: 16 },
-  { key: 'triceps', label: 'Triceps', side: 'back', x: 50, y: 35, w: 76, h: 10 },
-  { key: 'glutes', label: 'Glutes', side: 'back', x: 50, y: 50, w: 40, h: 10 },
-  { key: 'hamstrings', label: 'Hamstrings', side: 'back', x: 50, y: 64, w: 44, h: 15 },
-  { key: 'calves', label: 'Calves', side: 'back', x: 50, y: 83, w: 40, h: 12 },
+  { key: 'shoulders', label: 'Shoulders', side: 'front', x: 50, y: 18.7, w: 16, h: 8, pair: 17 },
+  { key: 'chest', label: 'Chest', side: 'front', x: 50, y: 23.5, w: 32, h: 9 },
+  { key: 'biceps', label: 'Biceps', side: 'front', x: 50, y: 27, w: 14, h: 10, pair: 27.5 },
+  { key: 'core', label: 'Core', side: 'front', x: 50, y: 36, w: 22, h: 13 },
+  { key: 'quads', label: 'Quads', side: 'front', x: 50, y: 62, w: 32, h: 20 },
+  { key: 'triceps', label: 'Triceps', side: 'back', x: 50, y: 28.5, w: 14, h: 10, pair: 27.5 },
+  { key: 'back', label: 'Back', side: 'back', x: 50, y: 27, w: 34, h: 18 },
+  { key: 'glutes', label: 'Glutes', side: 'back', x: 50, y: 47, w: 34, h: 9 },
+  { key: 'hamstrings', label: 'Hamstrings', side: 'back', x: 50, y: 61, w: 32, h: 17 },
+  { key: 'calves', label: 'Calves', side: 'back', x: 50, y: 84, w: 14, h: 12, pair: 8.5 },
 ];
 
 export const MUSCLE_LABEL: Record<MuscleGroup, string> = MUSCLES.reduce(

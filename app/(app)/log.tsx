@@ -150,7 +150,7 @@ export default function LogScreen() {
     pushOptimistic(optimisticItem);
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     resetDraft();
-    router.replace('/(app)/feed');
+    router.replace('/(app)/(tabs)/feed');
 
     try {
       const photoUrl = snapshot.photoUri

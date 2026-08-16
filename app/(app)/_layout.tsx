@@ -18,10 +18,11 @@ export default function AppLayout() {
         contentStyle: { backgroundColor: color.bg },
       }}
     >
-      <Stack.Screen name="feed" options={{ animation: 'fade' }} />
+      <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
       <Stack.Screen name="camera" options={{ animation: 'slide_from_bottom' }} />
       <Stack.Screen name="log" options={{ animation: 'slide_from_right' }} />
-      <Stack.Screen name="progress" options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="session" options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="routine-edit" options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="tools" options={{ animation: 'slide_from_right' }} />
       <Stack.Screen
         name="timer"
