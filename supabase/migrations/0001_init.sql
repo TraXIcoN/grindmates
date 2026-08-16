@@ -1,5 +1,5 @@
 -- =============================================================================
--- Vitals — initial schema
+-- Grindmates — initial schema
 -- Tables, foreign keys, indexes, RLS policies, and storage bucket policies.
 -- Run with: supabase db push   (or paste into the SQL editor)
 -- =============================================================================

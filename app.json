@@ -1,9 +1,9 @@
 {
   "expo": {
-    "name": "Vitals",
-    "slug": "vitals",
+    "name": "Grindmates",
+    "slug": "grindmates",
     "version": "1.0.0",
-    "scheme": "vitals",
+    "scheme": "grindmates",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
@@ -14,14 +14,14 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.vitals.app",
+      "bundleIdentifier": "com.grindmates.app",
       "infoPlist": {
-        "NSCameraUsageDescription": "Vitals uses the camera to capture your post-workout check-in photo.",
+        "NSCameraUsageDescription": "Grindmates uses the camera to capture your post-workout check-in photo.",
         "NSPhotoLibraryUsageDescription": "Pick an existing photo for your check-in."
       }
     },
     "android": {
-      "package": "com.vitals.app",
+      "package": "com.grindmates.app",
       "edgeToEdgeEnabled": true,
       "permissions": ["android.permission.CAMERA"],
       "adaptiveIcon": { "backgroundColor": "#090D16" }
@@ -31,7 +31,7 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Vitals uses the camera to capture your post-workout check-in photo."
+          "cameraPermission": "Grindmates uses the camera to capture your post-workout check-in photo."
         }
       ]
     ],

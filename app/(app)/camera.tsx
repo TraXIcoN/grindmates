@@ -50,7 +50,7 @@ export default function CameraScreen() {
       <View style={[styles.screen, styles.gate, { paddingTop: insets.top + 80 }]}>
         <Text style={styles.gateTitle}>Camera access</Text>
         <Text style={styles.gateBody}>
-          Vitals needs the camera to capture your post-workout proof. Nothing is uploaded until you
+          Grindmates needs the camera to capture your post-workout proof. Nothing is uploaded until you
           post.
         </Text>
         <Pressable

@@ -1,8 +1,10 @@
 import {
   DEMO,
+  DEMO_USER_ID,
   demoCreateGroup,
   demoFeed,
   demoGroups,
+  demoJoinGroup,
   demoPendingMembers,
   demoPostCheckIn,
   demoProfile,
@@ -40,7 +42,7 @@ export async function fetchMyGroups(userId: string): Promise<Group[]> {
 
   const { data, error } = await supabase
     .from('group_members')
-    .select('groups(id, name, emblem, owner_id, created_at)')
+    .select('groups(id, name, emblem, owner_id, created_at, join_code)')
     .eq('user_id', userId);
   if (error) throw error;
 
@@ -81,6 +83,29 @@ export async function createGroup(name: string, emblem: string, ownerId: string)
     .single();
   if (error) throw error;
   return { ...(data as Group), member_count: 1 };
+}
+
+/**
+ * Join a crew by its 8-digit code. Runs through a SECURITY DEFINER function
+ * (migration 0002) because the joiner can neither see the group row nor insert
+ * their own membership under RLS before they are a member.
+ */
+export async function joinGroup(code: string): Promise<Group> {
+  if (DEMO) return demoJoinGroup(code, DEMO_USER_ID);
+
+  const { data, error } = await supabase
+    .rpc('join_group_with_code', { p_code: code })
+    .single();
+  if (error) {
+    if (error.code === 'P0002' || /no crew/i.test(error.message)) {
+      throw new Error('No crew found with that code.');
+    }
+    if (error.code === '23505' || /already/i.test(error.message)) {
+      throw new Error('You are already in this crew.');
+    }
+    throw error;
+  }
+  return data as Group;
 }
 
 /** Members of a group who have NOT checked in today — powers the nudge card. */

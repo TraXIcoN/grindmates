@@ -22,11 +22,12 @@ const configuredKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? extra.supabas
 
 if (DEMO) {
   console.info(
-    '[vitals] Demo mode — showing sample data. Copy .env.example to .env and fill in ' +
+    '[grindmates] Local mode — no Supabase configured, so accounts and check-ins ' +
+      'persist on this device only. Copy .env.example to .env and fill in ' +
       'EXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_ANON_KEY to use a real project.',
   );
 } else if (!configuredKey) {
-  console.warn('[vitals] EXPO_PUBLIC_SUPABASE_ANON_KEY is missing.');
+  console.warn('[grindmates] EXPO_PUBLIC_SUPABASE_ANON_KEY is missing.');
 }
 
 /**
@@ -44,7 +45,7 @@ if (DEMO) {
 function unreachableClient(): SupabaseClient {
   const fail = (prop: string): never => {
     throw new Error(
-      `[vitals] supabase.${prop} was reached in demo mode. No project is ` +
+      `[grindmates] supabase.${prop} was reached in demo mode. No project is ` +
         'configured, so this call site needs an `if (DEMO)` branch.',
     );
   };

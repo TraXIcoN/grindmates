@@ -39,6 +39,8 @@ export interface Group {
   emblem: string;
   owner_id: string;
   created_at: string;
+  /** 8-digit crew code others use to join. */
+  join_code?: string | null;
   /** Joined in via the roster query, not a column. */
   member_count?: number;
 }

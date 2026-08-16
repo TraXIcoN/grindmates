@@ -199,7 +199,7 @@ function EmptyFeed({ hasGroup, onCreate }: { hasGroup: boolean; onCreate: () => 
       <Text style={styles.emptyBody}>
         {hasGroup
           ? 'Be the one who sets the pace — hit Check in below.'
-          : 'Vitals runs on small closed crews. Start yours, then bring 4–12 people in.'}
+          : 'Grindmates runs on small closed crews. Start yours, then bring 4–12 people in.'}
       </Text>
       {!hasGroup ? (
         <Pressable

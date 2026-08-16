@@ -1,4 +1,5 @@
 import { Stack } from 'expo-router';
+import Head from 'expo-router/head';
 import { StatusBar } from 'expo-status-bar';
 import React from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -12,6 +13,9 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: color.bg }}>
       <SafeAreaProvider>
         <AppProvider>
+          <Head>
+            <title>Grindmates</title>
+          </Head>
           <StatusBar style="light" />
           <Stack
             screenOptions={{

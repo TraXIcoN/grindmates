@@ -7,6 +7,7 @@ import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { Plus } from 'lucide-react-native';
 
 import { ChevronDownIcon } from '@/components/ui/icons';
+import { formatJoinCode, shareJoinCode } from '@/lib/share';
 import { border, color, emblemGradients, menuShadow, radius, type } from '@/lib/theme';
 import type { Group } from '@/lib/types';
 
@@ -43,7 +44,18 @@ interface Props {
  */
 export function GroupSwitcher({ groups, active, onSelect, onCreate }: Props) {
   const [open, setOpen] = useState(false);
+  const [shared, setShared] = useState(false);
   const activeIndex = Math.max(0, groups.findIndex((g) => g.id === active?.id));
+
+  async function shareCode() {
+    if (!active?.join_code) return;
+    void Haptics.selectionAsync();
+    const result = await shareJoinCode(active.name, active.join_code);
+    if (result === 'copied') {
+      setShared(true);
+      setTimeout(() => setShared(false), 1600);
+    }
+  }
 
   return (
     <>
@@ -99,10 +111,27 @@ export function GroupSwitcher({ groups, active, onSelect, onCreate }: Props) {
               </Pressable>
             ))}
 
+            {active?.join_code ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Crew code ${formatJoinCode(active.join_code)}. Tap to share.`}
+                onPress={() => void shareCode()}
+                style={({ pressed }) => [
+                  styles.row,
+                  styles.codeRow,
+                  pressed && { backgroundColor: color.surface },
+                ]}
+              >
+                <Text style={styles.codeLabel}>CODE</Text>
+                <Text style={styles.codeValue}>{formatJoinCode(active.join_code)}</Text>
+                <Text style={styles.codeAction}>{shared ? 'Copied' : 'Share'}</Text>
+              </Pressable>
+            ) : null}
+
             {onCreate ? (
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="New crew"
+                accessibilityLabel="New or join crew"
                 onPress={() => {
                   void Haptics.selectionAsync();
                   setOpen(false);
@@ -117,7 +146,7 @@ export function GroupSwitcher({ groups, active, onSelect, onCreate }: Props) {
                 <View style={styles.plusBox}>
                   <Plus size={13} color={color.textTertiary} strokeWidth={2.4} />
                 </View>
-                <Text style={styles.createLabel}>New crew</Text>
+                <Text style={styles.createLabel}>New or join crew</Text>
               </Pressable>
             ) : null}
           </Animated.View>
@@ -184,13 +213,27 @@ const styles = StyleSheet.create({
   rowCount: { fontSize: 11, fontWeight: '600', color: color.muted },
 
   createRow: {
-    marginTop: 4,
-    borderTopWidth: 1,
-    borderTopColor: border.faint,
+    marginTop: 0,
     borderRadius: 0,
     borderBottomLeftRadius: 11,
     borderBottomRightRadius: 11,
   },
+  codeRow: {
+    marginTop: 4,
+    borderTopWidth: 1,
+    borderTopColor: border.faint,
+    borderRadius: 0,
+  },
+  codeLabel: { fontSize: 9, fontWeight: '700', letterSpacing: 1.4, color: color.muted },
+  codeValue: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 1.5,
+    color: color.text,
+    fontVariant: ['tabular-nums'],
+  },
+  codeAction: { fontSize: 11, fontWeight: '700', color: color.accent },
   plusBox: {
     width: 24,
     height: 24,

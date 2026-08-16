@@ -86,7 +86,7 @@ export default function SignIn() {
         ]}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={styles.wordmark}>VITALS</Text>
+        <Text style={styles.wordmark}>GRINDMATES</Text>
         <Text style={styles.title}>
           {mode === 'in' ? 'Back at it.' : 'Start the streak.'}
         </Text>

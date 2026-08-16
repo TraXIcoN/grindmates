@@ -9,8 +9,15 @@ import React, {
   type ReactNode,
 } from 'react';
 
-import { createGroup, fetchMyGroups, fetchProfile } from '@/lib/api';
-import { DEMO, DEMO_USER_ID, ensureDemoProfile, subscribeDemo } from '@/lib/demo';
+import { createGroup, fetchMyGroups, fetchProfile, joinGroup as apiJoinGroup } from '@/lib/api';
+import {
+  DEMO,
+  DEMO_USER_ID,
+  ensureDemoProfile,
+  hydrateDemo,
+  setDemoSignedIn,
+  subscribeDemo,
+} from '@/lib/demo';
 import { supabase } from '@/lib/supabase';
 import { EMPTY_DRAFT, type CheckInDraft, type FeedItem, type Group, type Profile } from '@/lib/types';
 
@@ -32,6 +39,7 @@ interface AppState {
   refreshProfile: () => Promise<void>;
   refreshGroups: () => Promise<void>;
   addGroup: (name: string, emblem: string) => Promise<Group | null>;
+  joinGroup: (code: string) => Promise<{ group: Group | null; error: string | null }>;
 
   /** The in-flight check-in, shared across camera -> log -> post. */
   draft: CheckInDraft;
@@ -72,7 +80,7 @@ interface AppState {
 
 const AppContext = createContext<AppState | null>(null);
 
-const ACTIVE_GROUP_KEY = 'vitals.activeGroupId';
+const ACTIVE_GROUP_KEY = 'grindmates.activeGroupId';
 
 /**
  * A stand-in for a signed-in Supabase session, used only when no project is
@@ -102,11 +110,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
   /* ---------------------------------------------------------------- auth -- */
 
   useEffect(() => {
-    // Demo mode: nobody is signed in until they create an account. There is no
-    // persisted session to read and no auth server to listen to.
+    // Demo mode: read the persisted local store first — an account created
+    // here survives reloads exactly like a real session would.
     if (DEMO) {
-      setBooting(false);
-      return;
+      let alive = true;
+      void hydrateDemo().then((signedIn) => {
+        if (!alive) return;
+        if (signedIn) setSession(DEMO_SESSION);
+        setBooting(false);
+      });
+      return () => {
+        alive = false;
+      };
     }
 
     let alive = true;
@@ -143,7 +158,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     try {
       setProfile(await fetchProfile(userId));
     } catch (err) {
-      console.warn('[vitals] profile load failed', err);
+      console.warn('[grindmates] profile load failed', err);
     }
   }, [userId]);
 
@@ -157,7 +172,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         return next[0]?.id ?? null;
       });
     } catch (err) {
-      console.warn('[vitals] group load failed', err);
+      console.warn('[grindmates] group load failed', err);
     }
   }, [userId]);
 
@@ -200,8 +215,29 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setActiveGroupId(group.id);
         return group;
       } catch (err) {
-        console.warn('[vitals] group create failed', err);
+        console.warn('[grindmates] group create failed', err);
         return null;
+      }
+    },
+    [userId],
+  );
+
+  const joinGroup = useCallback(
+    async (code: string) => {
+      if (!userId) return { group: null, error: 'Not signed in.' };
+      try {
+        const group = await apiJoinGroup(code);
+        setGroups((prev) => {
+          if (prev.some((g) => g.id === group.id)) return prev;
+          return [...prev, group].sort((a, b) => a.name.localeCompare(b.name));
+        });
+        setActiveGroupId(group.id);
+        return { group, error: null };
+      } catch (err) {
+        return {
+          group: null,
+          error: err instanceof Error ? err.message : 'Could not join that crew.',
+        };
       }
     },
     [userId],
@@ -227,6 +263,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       // First sign-in with no prior sign-up still needs a profile; derive a
       // name from the email rather than inventing a person.
       ensureDemoProfile(email.split('@')[0] ?? 'you');
+      setDemoSignedIn(true);
       setSession(DEMO_SESSION);
       return null;
     }
@@ -238,6 +275,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     async (email: string, password: string, username: string) => {
       if (DEMO) {
         ensureDemoProfile(username, true);
+        setDemoSignedIn(true);
         setSession(DEMO_SESSION);
         return { error: null, needsConfirmation: false };
       }
@@ -257,6 +295,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const signInAnonymously = useCallback(async () => {
     if (DEMO) {
       ensureDemoProfile('you');
+      setDemoSignedIn(true);
       setSession(DEMO_SESSION);
       return null;
     }
@@ -266,6 +305,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(async () => {
     if (DEMO) {
+      // Flag only — the store keeps everything, so signing back in retrieves
+      // the full history.
+      setDemoSignedIn(false);
       setSession(null);
       setProfile(null);
       setGroups([]);
@@ -291,6 +333,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       refreshProfile,
       refreshGroups,
       addGroup,
+      joinGroup,
       draft,
       patchDraft,
       resetDraft,
@@ -314,6 +357,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       refreshProfile,
       refreshGroups,
       addGroup,
+      joinGroup,
       draft,
       patchDraft,
       resetDraft,

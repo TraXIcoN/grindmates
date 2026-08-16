@@ -1,7 +1,8 @@
-# Vitals
+# Grindmates
 
 Minimalist social fitness, athletic dark mode. Built from the Claude Design handoff
-`Vitals - Design System & Feed.dc.html` and the project's app instructions.
+`Vitals - Design System & Feed.dc.html` (the app's working title during design) and
+the project's app instructions.
 
 Ground is near-black so photo check-ins carry all the light; lime is reserved for a
 single live action per screen.
@@ -16,10 +17,13 @@ npx expo start
 ```
 
 That runs immediately, with no backend: when `EXPO_PUBLIC_SUPABASE_URL` is unset the
-app runs on an in-memory store (`lib/demo.ts`). There is no fake cast and no seeded
-feed — a visitor walks the same path a real user does: create an account, start a
-crew, post the first check-in. Reactions, crew switching and posting all work against
-the store; nothing is persisted across a reload.
+app runs in local mode (`lib/demo.ts`). There is no fake cast and no seeded feed — a
+visitor walks the same path a real user does: create an account, start a crew, post
+the first check-in. Everything persists on the device (AsyncStorage; localStorage on
+web): reload and you are still signed in with your crew, streak, and check-ins
+intact. Signing out keeps the data, so signing back in retrieves all of it. The
+honest limit of local mode is that it is one device — another person cannot join
+your crew until the app points at a real Supabase project.
 
 To point it at a real project:
 
@@ -31,7 +35,7 @@ npx expo start --clear
 The moment that URL is real, every `if (DEMO)` branch switches off and the app talks
 only to Supabase.
 
-Then run the migration once against your Supabase project:
+Then run the migrations in order against your Supabase project:
 
 ```bash
 supabase db push
@@ -195,7 +199,13 @@ Two details in that setup are load-bearing:
   remove one); the strain card totals sets, reps, and time under rest. The play
   button alone is still a plain rest timer.
 - **Crews.** A new account lands on an empty feed whose single lime action starts a
-  crew (name + emblem); the group switcher menu carries a "New crew" row after that.
+  crew (name + emblem); the switcher menu carries a "New or join crew" row after that.
+  Every crew has an **8-digit join code**: it is shown the moment a crew is created
+  (with a share/copy action), lives on the switcher menu afterwards, and anyone
+  signed in can enter it under "Join with code". On Supabase this runs through the
+  `join_group_with_code` SECURITY DEFINER function (migration `0002_join_codes.sql`),
+  because under RLS a non-member can neither look up the group nor insert their own
+  membership.
 
 ## Not built
 

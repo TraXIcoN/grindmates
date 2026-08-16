@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 
 import type {
@@ -47,13 +48,69 @@ interface DemoRow extends CheckIn {
 }
 
 const store = {
+  signedIn: false,
   profiles: [] as Profile[],
   groups: [] as Group[],
   rows: [] as DemoRow[],
 };
 
 /** group id -> member ids. */
-const roster: Record<string, string[]> = {};
+let roster: Record<string, string[]> = {};
+
+/* -------------------------------------------------------------------------- */
+/* Persistence                                                                */
+/* -------------------------------------------------------------------------- */
+
+const STORE_KEY = 'grindmates.demo.v1';
+
+let hydrated = false;
+
+/**
+ * Loads the persisted store before the first render decides where to send the
+ * user. This is what makes an account survive a reload: the session flag, the
+ * profile, crews, and every check-in come back exactly as they were left.
+ * AsyncStorage is backed by localStorage on web and native storage elsewhere.
+ */
+export async function hydrateDemo(): Promise<boolean> {
+  if (!DEMO || hydrated) return store.signedIn;
+  hydrated = true;
+  try {
+    const raw = await AsyncStorage.getItem(STORE_KEY);
+    if (raw) {
+      const saved = JSON.parse(raw) as Partial<typeof store> & {
+        roster?: Record<string, string[]>;
+      };
+      store.signedIn = !!saved.signedIn;
+      store.profiles = saved.profiles ?? [];
+      store.groups = saved.groups ?? [];
+      store.rows = saved.rows ?? [];
+      roster = saved.roster ?? {};
+    }
+  } catch {
+    // A corrupt blob should never brick the app — start clean instead.
+  }
+  return store.signedIn;
+}
+
+let saveTimer: ReturnType<typeof setTimeout> | null = null;
+
+/** Debounced write-behind; every mutation below calls this. */
+function persist(): void {
+  if (!DEMO) return;
+  if (saveTimer) clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    void AsyncStorage.setItem(STORE_KEY, JSON.stringify({ ...store, roster })).catch(() => {});
+  }, 120);
+}
+
+/**
+ * Signing out flips the flag but keeps the data, so signing back in retrieves
+ * everything that was ever logged under this account.
+ */
+export function setDemoSignedIn(value: boolean): void {
+  store.signedIn = value;
+  persist();
+}
 
 /* --------------------------------------------------------------- listeners -- */
 
@@ -97,6 +154,7 @@ export function ensureDemoProfile(username: string, overwriteName = false): Prof
   } else if (overwriteName && username.trim()) {
     me.username = username.trim();
   }
+  persist();
   return me;
 }
 
@@ -115,19 +173,48 @@ export function demoGroups(userId: string): Group[] {
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
+/** 8 digits, zero-padded — easy to read out across a gym floor. */
+function newJoinCode(): string {
+  let code = String(Math.floor(Math.random() * 100_000_000)).padStart(8, '0');
+  while (store.groups.some((g) => g.join_code === code)) {
+    code = String(Math.floor(Math.random() * 100_000_000)).padStart(8, '0');
+  }
+  return code;
+}
+
 export function demoCreateGroup(name: string, emblem: string, ownerId: string): Group {
   const group: Group = {
-    id: `demo-group-${store.groups.length + 1}`,
+    id: `demo-group-${Date.now()}`,
     name,
     emblem,
     owner_id: ownerId,
     created_at: new Date().toISOString(),
     member_count: 1,
+    join_code: newJoinCode(),
   };
   store.groups = [...store.groups, group];
   roster[group.id] = [ownerId];
+  persist();
   emit();
   return group;
+}
+
+export function demoJoinGroup(code: string, userId: string): Group {
+  const digits = code.replace(/\D/g, '');
+  const group = store.groups.find((g) => g.join_code === digits);
+  if (!group) {
+    // Honest about the demo's limits: another person's crew lives in their
+    // browser, not in a shared backend, so their code cannot resolve here.
+    throw new Error('No crew found with that code.');
+  }
+  const members = roster[group.id] ?? [];
+  if (members.includes(userId)) {
+    throw new Error('You are already in this crew.');
+  }
+  roster[group.id] = [...members, userId];
+  persist();
+  emit();
+  return { ...group, member_count: roster[group.id].length };
 }
 
 export function demoPendingMembers(
@@ -199,6 +286,7 @@ export function demoToggleReaction(
 
   row.reactions = row.reactions.filter((r) => !(r.user_id === userId && r.type === type));
   if (nextOn) row.reactions.push({ user_id: userId, type });
+  persist();
   // No emit(): the caller already applied this optimistically, and re-rendering
   // from the store here would fight that update.
 }
@@ -246,6 +334,7 @@ export function demoPostCheckIn(args: DemoPostArgs): CheckIn {
   const me = store.profiles.find((p) => p.id === DEMO_USER_ID);
   if (me) me.streak_count += 1;
 
+  persist();
   emit();
 
   const { muscles: _m, reactions: _r, comment_count: _c, ...checkIn } = row;
