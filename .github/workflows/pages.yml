@@ -5,8 +5,9 @@ on:
     branches: [main]
   workflow_dispatch:
 
-# Inert until Pages is enabled: Settings -> Pages -> Source: GitHub Actions.
-# On a free account that also requires the repository to be public.
+# The configure-pages step below provisions the Pages site itself on the first
+# run, so there is nothing to switch on by hand. On a free plan Pages publishes
+# from public repositories only.
 permissions:
   contents: read
   pages: write
@@ -42,7 +43,13 @@ jobs:
       - name: Disable Jekyll
         run: touch dist/.nojekyll
 
+      # enablement: true provisions the Pages site through the API on the first
+      # run, using the pages: write permission granted above. Without it the job
+      # fails with "Get Pages site failed ... Not Found" until someone clicks
+      # through Settings -> Pages. Requires a public repository on a free plan.
       - uses: actions/configure-pages@v5
+        with:
+          enablement: true
 
       - uses: actions/upload-pages-artifact@v3
         with:

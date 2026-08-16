@@ -162,10 +162,12 @@ If a rebuild ignores a changed `EXPO_PUBLIC_*` value, clear Metro's transform
 cache — `npx expo start --clear`, or delete `/tmp/metro-cache` before exporting.
 It caches transformed modules with those values already inlined.
 
-`.github/workflows/pages.yml` publishes that same web build to GitHub Pages. It is
-inert until Pages is switched on under **Settings → Pages → Source: GitHub Actions** —
-and on a free account that also requires the repository to be public. No Supabase
-secrets are supplied to the workflow, so the deployed page runs in demo mode.
+`.github/workflows/pages.yml` publishes that same web build to GitHub Pages, at
+<https://traxicon.github.io/grindmates/>. Its `configure-pages` step passes
+`enablement: true`, so the first run provisions the Pages site through the API — there
+is nothing to switch on by hand. On a free plan Pages publishes from public
+repositories only. No Supabase secrets are supplied to the workflow, so the deployed
+page runs in demo mode.
 
 Two details in that setup are load-bearing:
 
