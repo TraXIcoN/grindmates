@@ -9,15 +9,18 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { Plus, Star } from 'lucide-react-native';
+import { CalendarDays, Plus, Star } from 'lucide-react-native';
+import { Image } from 'expo-image';
+import Animated, { FadeIn, LinearTransition } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AmbientGlow } from '@/components/ui/AmbientGlow';
 import { useTraining } from '@/hooks/useTraining';
 import { EXERCISES } from '@/lib/exercises';
+import { exerciseMedia } from '@/lib/exerciseMedia';
 import { MUSCLE_LABEL, MUSCLES } from '@/lib/muscles';
 import { alpha, border, color, layout, radius, toggleTint, type } from '@/lib/theme';
-import { addExerciseToSession, toggleFavorite } from '@/lib/workout';
+import { addExerciseToRoutine, addExerciseToSession, toggleFavorite } from '@/lib/workout';
 import type { MuscleGroup } from '@/lib/types';
 
 /**
@@ -28,11 +31,13 @@ import type { MuscleGroup } from '@/lib/types';
 export default function LibraryScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { favorites, active } = useTraining();
+  const { favorites, active, routines } = useTraining();
 
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<MuscleGroup | null>(null);
   const [addedFlash, setAddedFlash] = useState<string | null>(null);
+  /** One expanded row at a time — tap to open, tap again to close. */
+  const [openRow, setOpenRow] = useState<string | null>(null);
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -52,6 +57,13 @@ export default function LibraryScreen() {
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     addExerciseToSession(name, muscle);
     setAddedFlash(name);
+    setTimeout(() => setAddedFlash(null), 1400);
+  };
+
+  const addToRoutine = (routineId: string, name: string, muscle: MuscleGroup) => {
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    const added = addExerciseToRoutine(routineId, name, muscle);
+    setAddedFlash(added ? `${routineId}:${name}` : `dup:${name}`);
     setTimeout(() => setAddedFlash(null), 1400);
   };
 
@@ -96,47 +108,116 @@ export default function LibraryScreen() {
           </Pressable>
         ) : null}
 
-        {rows.map((r) => (
-          <View key={r.name} style={styles.row}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={r.fav ? `Unstar ${r.name}` : `Star ${r.name}`}
-              onPress={() => {
-                void Haptics.selectionAsync();
-                toggleFavorite(r.name);
-              }}
-              hitSlop={8}
+        {rows.map((r) => {
+          const open = openRow === r.name;
+          const frames = open ? exerciseMedia(r.name, r.muscle) : [];
+          return (
+            <Animated.View
+              key={r.name}
+              layout={LinearTransition.duration(180)}
+              style={[styles.row, open && styles.rowOpen]}
             >
-              <Star
-                size={16}
-                color={r.fav ? color.accent : color.textFaint}
-                fill={r.fav ? color.accent : 'transparent'}
-                strokeWidth={2}
-              />
-            </Pressable>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.rowName}>{r.name}</Text>
-              <Text style={styles.rowMuscle}>{MUSCLE_LABEL[r.muscle]}</Text>
-            </View>
-            {active ? (
-              addedFlash === r.name ? (
-                <Text style={styles.added}>Added</Text>
-              ) : active.exercises.some((e) => e.name === r.name) ? (
-                <Text style={styles.inSession}>In session</Text>
-              ) : (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={r.name}
+                accessibilityState={{ expanded: open }}
+                onPress={() => {
+                  void Haptics.selectionAsync();
+                  setOpenRow((cur) => (cur === r.name ? null : r.name));
+                }}
+                style={styles.rowHead}
+              >
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel={`Add ${r.name} to session`}
-                  onPress={() => addToSession(r.name, r.muscle)}
+                  accessibilityLabel={r.fav ? `Unstar ${r.name}` : `Star ${r.name}`}
+                  onPress={() => {
+                    void Haptics.selectionAsync();
+                    toggleFavorite(r.name);
+                  }}
                   hitSlop={8}
-                  style={({ pressed }) => [styles.addBtn, pressed && { backgroundColor: color.surfaceHi }]}
                 >
-                  <Plus size={14} color={color.accent} strokeWidth={2.4} />
+                  <Star
+                    size={16}
+                    color={r.fav ? color.accent : color.textFaint}
+                    fill={r.fav ? color.accent : 'transparent'}
+                    strokeWidth={2}
+                  />
                 </Pressable>
-              )
-            ) : null}
-          </View>
-        ))}
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.rowName}>{r.name}</Text>
+                  <Text style={styles.rowMuscle}>{MUSCLE_LABEL[r.muscle]}</Text>
+                </View>
+                {active ? (
+                  addedFlash === r.name ? (
+                    <Text style={styles.added}>Added</Text>
+                  ) : active.exercises.some((e) => e.name === r.name) ? (
+                    <Text style={styles.inSession}>In session</Text>
+                  ) : (
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`Add ${r.name} to session`}
+                      onPress={() => addToSession(r.name, r.muscle)}
+                      hitSlop={8}
+                      style={({ pressed }) => [styles.addBtn, pressed && { backgroundColor: color.surfaceHi }]}
+                    >
+                      <Plus size={14} color={color.accent} strokeWidth={2.4} />
+                    </Pressable>
+                  )
+                ) : null}
+              </Pressable>
+
+              {open ? (
+                <Animated.View entering={FadeIn.duration(160)}>
+                  {frames.length > 0 ? (
+                    <View style={styles.mediaRow}>
+                      {frames.map((src, k) => (
+                        <Image key={k} source={src} style={styles.mediaFrame} contentFit="cover" transition={120} />
+                      ))}
+                    </View>
+                  ) : (
+                    <Text style={styles.noMedia}>No demonstration for this one yet.</Text>
+                  )}
+
+                  {routines.length > 0 ? (
+                    <View style={styles.routineRow}>
+                      <CalendarDays size={13} color={color.muted} strokeWidth={2} />
+                      <Text style={styles.routineLabel}>Add to</Text>
+                      {routines.slice(0, 3).map((rt) => {
+                        const inIt = rt.exercises.some((e) => e.name === r.name);
+                        const flashed = addedFlash === `${rt.id}:${r.name}`;
+                        return (
+                          <Pressable
+                            key={rt.id}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Add ${r.name} to ${rt.name}`}
+                            disabled={inIt && !flashed}
+                            onPress={() => addToRoutine(rt.id, r.name, r.muscle)}
+                            style={({ pressed }) => [
+                              styles.routineChip,
+                              (inIt || flashed) && {
+                                backgroundColor: alpha(color.accent, 0.13),
+                                borderColor: alpha(color.accent, 0.38),
+                              },
+                              pressed && !inIt && { backgroundColor: color.surfaceHi },
+                            ]}
+                          >
+                            <Text
+                              style={[styles.routineChipText, (inIt || flashed) && { color: color.accent }]}
+                            >
+                              {flashed ? 'Added' : inIt ? `In ${rt.name}` : rt.name}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  ) : (
+                    <Text style={styles.noMedia}>Create a routine on Train to add exercises to it.</Text>
+                  )}
+                </Animated.View>
+              ) : null}
+            </Animated.View>
+          );
+        })}
 
         {rows.length === 0 ? (
           <Text style={styles.empty}>Nothing matches — try a shorter search.</Text>
@@ -203,9 +284,6 @@ const styles = StyleSheet.create({
   liveHint: { marginBottom: 10, fontSize: 12, fontWeight: '600', color: color.muted },
 
   row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
     paddingVertical: 11,
     paddingHorizontal: 12,
     marginBottom: 6,
@@ -214,6 +292,22 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: border.faint,
   },
+  rowOpen: { borderColor: alpha(color.accent, 0.3) },
+  rowHead: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  mediaRow: { flexDirection: 'row', gap: 8, marginTop: 12 },
+  mediaFrame: { flex: 1, height: 104, borderRadius: 11, backgroundColor: color.photoBg },
+  noMedia: { marginTop: 12, fontSize: 11.5, fontWeight: '500', color: color.textFaint },
+  routineRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 7, marginTop: 12 },
+  routineLabel: { fontSize: 11, fontWeight: '600', color: color.muted },
+  routineChip: {
+    paddingVertical: 6,
+    paddingHorizontal: 11,
+    borderRadius: radius.pill,
+    backgroundColor: color.surface,
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  routineChipText: { fontSize: 11.5, fontWeight: '700', color: color.textTertiary },
   rowName: { fontSize: 14, fontWeight: '700', letterSpacing: -0.14, color: color.text },
   rowMuscle: { marginTop: 1, fontSize: 11, fontWeight: '600', color: color.muted },
   addBtn: {

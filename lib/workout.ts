@@ -25,6 +25,9 @@ export interface SessionExercise {
   name: string;
   muscle: MuscleGroup;
   sets: WorkoutSet[];
+  /** Guided targets, present when the session came from a routine. */
+  targetSets?: number;
+  targetReps?: number;
 }
 
 export interface Session {
@@ -37,12 +40,20 @@ export interface Session {
   exercises: SessionExercise[];
 }
 
+export interface RoutineExercise {
+  name: string;
+  muscle: MuscleGroup;
+  /** Target sets × reps; older saved routines may lack them (default 3×10). */
+  sets?: number;
+  reps?: number;
+}
+
 export interface Routine {
   id: string;
   name: string;
   /** 0 = Monday … 6 = Sunday. */
   days: number[];
-  exercises: Array<{ name: string; muscle: MuscleGroup }>;
+  exercises: RoutineExercise[];
 }
 
 interface TrainingStore {
@@ -129,12 +140,19 @@ export function muscleOf(name: string): MuscleGroup {
  */
 export function startSession(
   muscles: MuscleGroup[],
-  seed?: Array<{ name: string; muscle: MuscleGroup }>,
+  seed?: RoutineExercise[],
   routineName: string | null = null,
 ): Session {
   const exercises: SessionExercise[] =
     seed && seed.length > 0
-      ? seed.map((e) => ({ ...e, sets: [] }))
+      ? seed.map((e) => ({
+          name: e.name,
+          muscle: e.muscle,
+          sets: [],
+          // A routine session is guided: every exercise carries its targets.
+          targetSets: e.sets ?? 3,
+          targetReps: e.reps ?? 10,
+        }))
       : muscles.flatMap((m) =>
           EXERCISES[m].slice(0, 2).map((name) => ({ name, muscle: m, sets: [] })),
         );
@@ -286,6 +304,27 @@ export function deleteRoutine(id: string): void {
   store.routines = store.routines.filter((r) => r.id !== id);
   persist();
   emit();
+}
+
+/** Library → routine: append an exercise (default 3×10) if not already in it. */
+export function addExerciseToRoutine(routineId: string, name: string, muscle: MuscleGroup): boolean {
+  const routine = store.routines.find((r) => r.id === routineId);
+  if (!routine) return false;
+  if (routine.exercises.some((e) => e.name === name)) return false;
+  routine.exercises = [...routine.exercises, { name, muscle, sets: 3, reps: 10 }];
+  persist();
+  emit();
+  return true;
+}
+
+/**
+ * The guided pointer: the first exercise whose target isn't met yet.
+ * -1 when the session has no targets or everything is done.
+ */
+export function guidedIndex(session: Session): number {
+  return session.exercises.findIndex(
+    (e) => e.targetSets !== undefined && e.sets.length < e.targetSets,
+  );
 }
 
 /** Monday-based day index for today, matching Routine.days. */

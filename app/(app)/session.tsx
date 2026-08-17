@@ -9,7 +9,9 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { ChevronLeft, Minus, Plus, Timer, X } from 'lucide-react-native';
+import { Check, ChevronLeft, Minus, Plus, Timer, X } from 'lucide-react-native';
+import { Image } from 'expo-image';
+import Animated, { FadeIn, LinearTransition } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Sheet } from '@/components/ui/Sheet';
@@ -18,6 +20,7 @@ import { useApp } from '@/hooks/useApp';
 import { useRestTimer, formatClock } from '@/hooks/useRestTimer';
 import { useTraining } from '@/hooks/useTraining';
 import { EXERCISES } from '@/lib/exercises';
+import { exerciseMedia } from '@/lib/exerciseMedia';
 import { MUSCLE_LABEL } from '@/lib/muscles';
 import { getRestDefault } from '@/lib/prefs';
 import { accentGlow, alpha, border, color, layout, radius, tierColor, toggleTint, type } from '@/lib/theme';
@@ -25,6 +28,7 @@ import {
   addExerciseToSession,
   discardSession,
   endSession,
+  guidedIndex,
   logSessionSet,
   removeExerciseFromSession,
   removeSessionSet,
@@ -53,7 +57,11 @@ export default function SessionScreen() {
   const { patchDraft, resetDraft } = useApp();
 
   const timer = useRestTimer(90);
-  const [expanded, setExpanded] = useState<number | null>(0);
+  /**
+   * null = follow the guided pointer (first exercise with unmet targets);
+   * a number = the lifter overrode it by tapping a card.
+   */
+  const [expanded, setExpanded] = useState<number | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [finished, setFinished] = useState<Session | null>(null);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
@@ -76,6 +84,9 @@ export default function SessionScreen() {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       logSessionSet(exerciseIndex, set);
       timer.restart();
+      // Hand control back to the guided pointer — when this exercise's targets
+      // fill, the next one expands and this one contracts.
+      setExpanded(null);
     },
     [timer],
   );
@@ -241,21 +252,25 @@ export default function SessionScreen() {
       ) : null}
 
       <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
-        {active.exercises.map((ex, i) => (
-          <ExerciseCard
-            key={`${ex.name}-${i}`}
-            exercise={ex}
-            index={i}
-            expanded={expanded === i}
-            onToggle={() => setExpanded((cur) => (cur === i ? null : i))}
-            onLog={(set) => logSet(i, set)}
-            onRemoveSet={(j) => removeSessionSet(i, j)}
-            onRemove={() => {
-              removeExerciseFromSession(i);
-              setExpanded(null);
-            }}
-          />
-        ))}
+        {active.exercises.map((ex, i) => {
+          const guided = guidedIndex(active);
+          const openIdx = expanded ?? (guided >= 0 ? guided : null);
+          return (
+            <ExerciseCard
+              key={`${ex.name}-${i}`}
+              exercise={ex}
+              index={i}
+              expanded={openIdx === i}
+              onToggle={() => setExpanded((cur) => ((cur ?? openIdx) === i ? -1 : i))}
+              onLog={(set) => logSet(i, set)}
+              onRemoveSet={(j) => removeSessionSet(i, j)}
+              onRemove={() => {
+                removeExerciseFromSession(i);
+                setExpanded(null);
+              }}
+            />
+          );
+        })}
 
         <Pressable
           accessibilityRole="button"
@@ -314,7 +329,7 @@ function ExerciseCard({
   onRemove: () => void;
 }) {
   const last = exercise.sets[exercise.sets.length - 1] ?? null;
-  const [reps, setReps] = useState<number>(last?.reps ?? 8);
+  const [reps, setReps] = useState<number>(last?.reps ?? exercise.targetReps ?? 8);
   const [weight, setWeight] = useState<number | null>(last?.weight ?? null);
   const [setType, setSetType] = useState<SetType>('working');
 
@@ -341,20 +356,61 @@ function ExerciseCard({
     setReps((prev) => Math.max(1, Math.min(50, prev + delta)));
   };
 
+  const guided = exercise.targetSets !== undefined;
+  const done = guided && exercise.sets.length >= (exercise.targetSets ?? 0);
+  const frames = exerciseMedia(exercise.name, exercise.muscle);
+
   return (
-    <View style={styles.exCard}>
+    <Animated.View
+      layout={LinearTransition.duration(200)}
+      style={[styles.exCard, expanded && styles.exCardActive]}
+    >
       <Pressable onPress={onToggle} style={styles.exHead} accessibilityRole="button">
         <View style={{ flex: 1 }}>
           <Text style={styles.exName}>{exercise.name}</Text>
           <Text style={styles.exMeta}>
-            {MUSCLE_LABEL[exercise.muscle]} · {exercise.sets.length} set
-            {exercise.sets.length === 1 ? '' : 's'}
+            {MUSCLE_LABEL[exercise.muscle]}
+            {guided
+              ? ` · set ${Math.min(exercise.sets.length + 1, exercise.targetSets!)} of ${exercise.targetSets} · ${exercise.targetReps} reps`
+              : ` · ${exercise.sets.length} set${exercise.sets.length === 1 ? '' : 's'}`}
           </Text>
         </View>
-        <Pressable accessibilityLabel={`Remove ${exercise.name}`} onPress={onRemove} hitSlop={10}>
-          <X size={15} color={color.textFaint} strokeWidth={2.2} />
-        </Pressable>
+
+        {/* The confirm: one tap logs the target set and moves the workout on. */}
+        {guided ? (
+          done ? (
+            <View style={[styles.completeBtn, styles.completeDone]}>
+              <Check size={16} color={color.onAccent} strokeWidth={3} />
+            </View>
+          ) : (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Complete set for ${exercise.name}`}
+              onPress={() => onLog({ type: setType, reps, weight })}
+              hitSlop={8}
+              style={({ pressed }) => [
+                styles.completeBtn,
+                pressed && { backgroundColor: alpha(color.accent, 0.25) },
+              ]}
+            >
+              <Check size={16} color={color.accent} strokeWidth={2.6} />
+            </Pressable>
+          )
+        ) : (
+          <Pressable accessibilityLabel={`Remove ${exercise.name}`} onPress={onRemove} hitSlop={10}>
+            <X size={15} color={color.textFaint} strokeWidth={2.2} />
+          </Pressable>
+        )}
       </Pressable>
+
+      {/* The movement itself, while the exercise is live. */}
+      {expanded && frames.length > 0 ? (
+        <Animated.View entering={FadeIn.duration(160)} style={styles.mediaRow}>
+          {frames.map((src, k) => (
+            <Image key={k} source={src} style={styles.mediaFrame} contentFit="cover" transition={120} />
+          ))}
+        </Animated.View>
+      ) : null}
 
       {exercise.sets.length > 0 ? (
         <View style={styles.setRows}>
@@ -437,7 +493,7 @@ function ExerciseCard({
           </View>
         </View>
       ) : null}
-    </View>
+    </Animated.View>
   );
 }
 
@@ -596,6 +652,25 @@ const styles = StyleSheet.create({
     backgroundColor: color.bgRaised,
     borderWidth: 1,
     borderColor: border.faint,
+  },
+  exCardActive: { borderColor: alpha(color.accent, 0.35) },
+  completeBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: alpha(color.accent, 0.45),
+    backgroundColor: alpha(color.accent, 0.12),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  completeDone: { backgroundColor: color.accent, borderColor: color.accent },
+  mediaRow: { flexDirection: 'row', gap: 8, marginTop: 12 },
+  mediaFrame: {
+    flex: 1,
+    height: 108,
+    borderRadius: 12,
+    backgroundColor: color.photoBg,
   },
   exHead: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   exName: { fontSize: 15, fontWeight: '800', letterSpacing: -0.3, color: color.text },

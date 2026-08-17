@@ -18,7 +18,7 @@ import { useTraining } from '@/hooks/useTraining';
 import { EXERCISES } from '@/lib/exercises';
 import { MUSCLE_LABEL } from '@/lib/muscles';
 import { accentGlow, border, color, layout, radius, tierColor, toggleTint, type } from '@/lib/theme';
-import { deleteRoutine, saveRoutine } from '@/lib/workout';
+import { deleteRoutine, saveRoutine, type RoutineExercise } from '@/lib/workout';
 import type { MuscleGroup } from '@/lib/types';
 
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -37,9 +37,16 @@ export default function RoutineEditScreen() {
 
   const [name, setName] = useState(existing?.name ?? '');
   const [days, setDays] = useState<number[]>(existing?.days ?? []);
-  const [exercises, setExercises] = useState<Array<{ name: string; muscle: MuscleGroup }>>(
-    existing?.exercises ?? [],
-  );
+  const [exercises, setExercises] = useState<RoutineExercise[]>(existing?.exercises ?? []);
+
+  /** One-tap cycles keep the row compact — no steppers crowding the tile. */
+  const SETS_CYCLE = [2, 3, 4, 5];
+  const REPS_CYCLE = [5, 6, 8, 10, 12, 15, 20];
+  const cycle = (arr: number[], cur: number | undefined, fallback: number) => {
+    const now = cur ?? fallback;
+    const idx = arr.indexOf(now);
+    return arr[(idx + 1) % arr.length] ?? fallback;
+  };
   const [pickerOpen, setPickerOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -122,6 +129,37 @@ export default function RoutineEditScreen() {
               <Text style={styles.exName}>{e.name}</Text>
               <Text style={styles.exMuscle}>{MUSCLE_LABEL[e.muscle]}</Text>
             </View>
+
+            {/* Tap to cycle targets — 3 × 10 by default. */}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`${e.sets ?? 3} sets, tap to change`}
+              onPress={() => {
+                void Haptics.selectionAsync();
+                setExercises((prev) =>
+                  prev.map((x, j) => (j === i ? { ...x, sets: cycle(SETS_CYCLE, x.sets, 3) } : x)),
+                );
+              }}
+              style={({ pressed }) => [styles.targetChip, pressed && { backgroundColor: color.surfaceHi }]}
+            >
+              <Text style={styles.targetValue}>{e.sets ?? 3}</Text>
+              <Text style={styles.targetUnit}>sets</Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`${e.reps ?? 10} reps, tap to change`}
+              onPress={() => {
+                void Haptics.selectionAsync();
+                setExercises((prev) =>
+                  prev.map((x, j) => (j === i ? { ...x, reps: cycle(REPS_CYCLE, x.reps, 10) } : x)),
+                );
+              }}
+              style={({ pressed }) => [styles.targetChip, pressed && { backgroundColor: color.surfaceHi }]}
+            >
+              <Text style={styles.targetValue}>{e.reps ?? 10}</Text>
+              <Text style={styles.targetUnit}>reps</Text>
+            </Pressable>
+
             <Pressable
               accessibilityLabel={`Remove ${e.name}`}
               onPress={() => setExercises((prev) => prev.filter((_, j) => j !== i))}
@@ -170,7 +208,9 @@ export default function RoutineEditScreen() {
       <PickSheet
         open={pickerOpen}
         already={exercises.map((e) => e.name)}
-        onAdd={(name2, muscle) => setExercises((prev) => [...prev, { name: name2, muscle }])}
+        onAdd={(name2, muscle) =>
+          setExercises((prev) => [...prev, { name: name2, muscle, sets: 3, reps: 10 }])
+        }
         onClose={() => setPickerOpen(false)}
       />
     </View>
@@ -302,6 +342,21 @@ const styles = StyleSheet.create({
   },
   exName: { fontSize: 14, fontWeight: '700', letterSpacing: -0.14, color: color.text },
   exMuscle: { marginTop: 1, fontSize: 11, fontWeight: '600', color: color.muted },
+  targetChip: {
+    alignItems: 'center',
+    minWidth: 42,
+    paddingVertical: 5,
+    paddingHorizontal: 8,
+    borderRadius: 10,
+    backgroundColor: color.surface,
+  },
+  targetValue: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: color.text,
+    fontVariant: ['tabular-nums'],
+  },
+  targetUnit: { fontSize: 8.5, fontWeight: '700', letterSpacing: 0.8, color: color.muted },
 
   addRow: {
     flexDirection: 'row',
