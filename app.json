@@ -9,8 +9,9 @@
     "newArchEnabled": true,
     "backgroundColor": "#090D16",
     "splash": {
-      "backgroundColor": "#090D16",
-      "resizeMode": "contain"
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#090D16"
     },
     "ios": {
       "supportsTablet": false,
@@ -23,8 +24,13 @@
     "android": {
       "package": "com.grindmates.app",
       "edgeToEdgeEnabled": true,
-      "permissions": ["android.permission.CAMERA"],
-      "adaptiveIcon": { "backgroundColor": "#090D16" }
+      "permissions": [
+        "android.permission.CAMERA"
+      ],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#090D16"
+      }
     },
     "plugins": [
       "expo-router",
@@ -48,6 +54,7 @@
     "extra": {
       "supabaseUrl": "https://YOUR-PROJECT.supabase.co",
       "supabaseAnonKey": "YOUR-ANON-KEY"
-    }
+    },
+    "icon": "./assets/icon.png"
   }
 }

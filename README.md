@@ -242,6 +242,38 @@ editor stack above them.
   because under RLS a non-member can neither look up the group nor insert their own
   membership.
 
+## Releasing to iPhone
+
+The app ships through **EAS Build** — Expo's cloud build service compiles and
+signs the iOS binary, so Xcode is never opened by hand. One-time prerequisites:
+an [Apple Developer Program](https://developer.apple.com/programs/) membership
+($99/yr — required for TestFlight and the App Store) and a free Expo account.
+
+```bash
+npm i -g eas-cli
+eas login                      # Expo account
+eas build:configure            # links the project (eas.json is committed)
+
+# Beta on your own phone + friends, via TestFlight:
+eas build --platform ios --profile production
+eas submit --platform ios      # uploads to App Store Connect
+# then App Store Connect → TestFlight → add internal testers
+
+# App Store release: same build; fill in the listing
+# (screenshots, description, privacy policy URL) and Submit for Review.
+```
+
+The first `eas build` asks for the Apple ID and manages certificates and
+provisioning profiles automatically. `eas.json` bakes the Supabase URL and
+publishable key into device builds (same public-by-design rationale as the
+Pages workflow); the bundle id is `com.grindmates.app` and the icon set lives
+in `assets/`.
+
+Known review blockers to close before an App Store submission (TestFlight is
+fine without them): Apple requires **in-app account deletion** when accounts
+can be created (guideline 5.1.1(v)) — the app has sign-out and local wipe but
+no server-side delete yet — and a **privacy policy URL** for the listing.
+
 ## Not built
 
 - Comment threads. Counts render on the reaction bar; there is no `comments` table.
