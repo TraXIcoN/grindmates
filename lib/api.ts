@@ -1,6 +1,7 @@
 import {
   DEMO,
   DEMO_USER_ID,
+  demoArchive,
   demoCreateGroup,
   demoFeed,
   demoGroups,
@@ -12,6 +13,7 @@ import {
   demoProfile,
   demoToggleReaction,
   demoWeights,
+  type ArchiveItem,
   type HistoryItem,
   type WeightEntry,
 } from './demo';
@@ -265,6 +267,43 @@ export async function postCheckIn(args: PostCheckInArgs): Promise<CheckIn> {
 export function strainFrom(effort: Partial<Record<MuscleGroup, EffortLevel>>): number {
   const raw = Object.values(effort).reduce<number>((sum, tier) => sum + (tier ?? 0), 0);
   return Math.min(21, Math.round(raw * 1.4 * 10) / 10);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Archive                                                                    */
+/* -------------------------------------------------------------------------- */
+
+export type { ArchiveItem };
+
+/** Every photo the crew has ever posted — the vault behind the feed. */
+export async function fetchArchive(groupId: string): Promise<ArchiveItem[]> {
+  if (DEMO) return demoArchive(groupId);
+
+  const { data, error } = await supabase
+    .from('check_ins')
+    .select('id, photo_url, caption, created_at, profiles!check_ins_user_id_fkey ( username )')
+    .eq('group_id', groupId)
+    .not('photo_url', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(240);
+  if (error) throw error;
+
+  return (data ?? []).map((row) => {
+    const r = row as unknown as {
+      id: string;
+      photo_url: string;
+      caption: string | null;
+      created_at: string;
+      profiles: { username: string } | null;
+    };
+    return {
+      id: r.id,
+      photo_url: r.photo_url,
+      caption: r.caption,
+      created_at: r.created_at,
+      username: r.profiles?.username ?? 'athlete',
+    };
+  });
 }
 
 /* -------------------------------------------------------------------------- */

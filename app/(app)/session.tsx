@@ -653,7 +653,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: border.faint,
   },
-  exCardActive: { borderColor: alpha(color.accent, 0.35) },
+  exCardActive: {
+    borderColor: alpha(color.accent, 0.4),
+    borderLeftWidth: 3,
+    borderLeftColor: color.accent,
+    backgroundColor: alpha(color.accent, 0.045),
+  },
   completeBtn: {
     width: 36,
     height: 36,

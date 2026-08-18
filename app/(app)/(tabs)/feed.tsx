@@ -2,7 +2,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
-import { Timer } from 'lucide-react-native';
+import { GalleryVerticalEnd, Timer } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CheckInFab } from '@/components/feed/CheckInFab';
@@ -119,6 +119,14 @@ export default function FeedScreen() {
         />
 
         <View style={styles.barRight}>
+          <Pressable
+            accessibilityLabel="Crew vault"
+            onPress={() => router.push('/(app)/archive')}
+            hitSlop={10}
+            style={({ pressed }) => [styles.timerBtn, pressed && { backgroundColor: color.surfaceHi }]}
+          >
+            <GalleryVerticalEnd size={16} color={color.textTertiary} strokeWidth={2} />
+          </Pressable>
           <Pressable
             accessibilityLabel="Rest timer"
             onPress={() => router.push('/(app)/timer')}

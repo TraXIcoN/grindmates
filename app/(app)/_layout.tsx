@@ -22,6 +22,7 @@ export default function AppLayout() {
       <Stack.Screen name="camera" options={{ animation: 'slide_from_bottom' }} />
       <Stack.Screen name="log" options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="session" options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="archive" options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="routine-edit" options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="tools" options={{ animation: 'slide_from_right' }} />
       <Stack.Screen

@@ -349,6 +349,32 @@ export function demoUploadPhoto(localUri: string): string {
 }
 
 /* -------------------------------------------------------------------------- */
+/* Archive                                                                    */
+/* -------------------------------------------------------------------------- */
+
+export interface ArchiveItem {
+  id: string;
+  photo_url: string;
+  caption: string | null;
+  created_at: string;
+  username: string;
+}
+
+/** Every photo the crew has ever posted, newest first. */
+export function demoArchive(groupId: string): ArchiveItem[] {
+  return store.rows
+    .filter((r) => r.group_id === groupId && r.photo_url)
+    .sort((a, b) => b.created_at.localeCompare(a.created_at))
+    .map((r) => ({
+      id: r.id,
+      photo_url: r.photo_url!,
+      caption: r.caption,
+      created_at: r.created_at,
+      username: store.profiles.find((p) => p.id === r.user_id)?.username ?? 'athlete',
+    }));
+}
+
+/* -------------------------------------------------------------------------- */
 /* History & stats                                                            */
 /* -------------------------------------------------------------------------- */
 

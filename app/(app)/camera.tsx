@@ -2,17 +2,18 @@ import { CameraView, useCameraPermissions, type CameraType } from 'expo-camera';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { SwitchCamera, X } from 'lucide-react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ChevronDown, SwitchCamera } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useApp } from '@/hooks/useApp';
+import { bakeFilter, FILTERS } from '@/lib/filters';
 import { accentGlow, alpha, border, color, radius, type } from '@/lib/theme';
 
 /**
- * BeReal-style capture. One shutter, one flip, one dismiss — nothing else.
- * The shot goes straight into the draft; upload happens on post so the user
- * never waits on the network mid-flow.
+ * The front door. The app opens here, Snapchat-style — camera live, one
+ * shutter, a row of lens filters, and a chevron down into the feed. The shot
+ * (with its grade baked in) goes straight into the check-in draft.
  */
 export default function CameraScreen() {
   const router = useRouter();
@@ -22,7 +23,16 @@ export default function CameraScreen() {
   const [permission, requestPermission] = useCameraPermissions();
   const [facing, setFacing] = useState<CameraType>('back');
   const [busy, setBusy] = useState(false);
+  const [filterKey, setFilterKey] = useState('normal');
   const cameraRef = useRef<CameraView>(null);
+
+  const filter = FILTERS.find((f) => f.key === filterKey) ?? FILTERS[0];
+
+  /** Launch screen has no back stack — closing always lands on the feed. */
+  const toFeed = useCallback(() => {
+    if (router.canGoBack()) router.back();
+    else router.replace('/(app)/(tabs)/feed');
+  }, [router]);
 
   const capture = useCallback(async () => {
     if (!cameraRef.current || busy) return;
@@ -31,7 +41,9 @@ export default function CameraScreen() {
     try {
       const photo = await cameraRef.current.takePictureAsync({ quality: 0.8, skipProcessing: true });
       if (photo?.uri) {
-        patchDraft({ photoUri: photo.uri });
+        // The grade you saw is the grade the crew gets.
+        const graded = await bakeFilter(photo.uri, filter.css);
+        patchDraft({ photoUri: graded });
         router.replace('/(app)/log');
         return;
       }
@@ -39,7 +51,7 @@ export default function CameraScreen() {
       // Fall through — the shutter re-arms rather than throwing at the user.
     }
     setBusy(false);
-  }, [busy, patchDraft, router]);
+  }, [busy, patchDraft, router, filter]);
 
   if (!permission) {
     return <View style={styles.screen} />;
@@ -59,8 +71,8 @@ export default function CameraScreen() {
         >
           <Text style={styles.gateCtaLabel}>Allow camera</Text>
         </Pressable>
-        <Pressable onPress={() => router.back()} hitSlop={12} style={{ marginTop: 18 }}>
-          <Text style={styles.gateSkip}>Not now</Text>
+        <Pressable onPress={toFeed} hitSlop={12} style={{ marginTop: 18 }}>
+          <Text style={styles.gateSkip}>Not now — take me to the feed</Text>
         </Pressable>
       </View>
     );
@@ -68,16 +80,51 @@ export default function CameraScreen() {
 
   return (
     <View style={styles.screen}>
-      <CameraView ref={cameraRef} style={StyleSheet.absoluteFill} facing={facing} />
+      {/* On web the CSS filter grades the live preview; native approximates
+          warm/cool/lime with a tint overlay until a native bake exists. */}
+      <View
+        style={[
+          StyleSheet.absoluteFill,
+          Platform.OS === 'web' && filter.css ? ({ filter: filter.css } as object) : null,
+        ]}
+      >
+        <CameraView ref={cameraRef} style={StyleSheet.absoluteFill} facing={facing} />
+      </View>
+      {Platform.OS !== 'web' && filter.tint ? (
+        <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: filter.tint }]} />
+      ) : null}
 
       <Pressable
-        accessibilityLabel="Close camera"
-        onPress={() => router.back()}
+        accessibilityLabel="Go to the feed"
+        onPress={toFeed}
         hitSlop={14}
         style={[styles.close, { top: insets.top + 12 }]}
       >
-        <X size={20} color={color.text} strokeWidth={2.2} />
+        <ChevronDown size={22} color={color.text} strokeWidth={2.2} />
       </Pressable>
+
+      {/* Lens row — one grade at a time, active chip in accent. */}
+      <View style={[styles.lensRow, { bottom: insets.bottom + 128 }]}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.lensRowInner}>
+          {FILTERS.map((f) => (
+            <Pressable
+              key={f.key}
+              accessibilityRole="button"
+              accessibilityLabel={`${f.label} filter`}
+              accessibilityState={{ selected: filterKey === f.key }}
+              onPress={() => {
+                void Haptics.selectionAsync();
+                setFilterKey(f.key);
+              }}
+              style={[styles.lensChip, filterKey === f.key && styles.lensChipOn]}
+            >
+              <Text style={[styles.lensLabel, filterKey === f.key && { color: color.accent }]}>
+                {f.label}
+              </Text>
+            </Pressable>
+          ))}
+        </ScrollView>
+      </View>
 
       <View style={[styles.controls, { paddingBottom: insets.bottom + 34 }]}>
         <View style={styles.controlSpacer} />
@@ -122,6 +169,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     zIndex: 10,
   },
+  lensRow: { position: 'absolute', left: 0, right: 0, zIndex: 5 },
+  lensRowInner: { gap: 8, paddingHorizontal: 20 },
+  lensChip: {
+    height: 34,
+    paddingHorizontal: 15,
+    borderRadius: radius.pill,
+    backgroundColor: alpha(color.bg, 0.55),
+    borderWidth: 1,
+    borderColor: 'transparent',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  lensChipOn: { backgroundColor: alpha(color.bg, 0.75), borderColor: alpha(color.accent, 0.6) },
+  lensLabel: { fontSize: 12.5, fontWeight: '700', color: color.text },
   controls: {
     position: 'absolute',
     left: 0,
