@@ -18,14 +18,16 @@
       "bundleIdentifier": "com.grindmates.app",
       "infoPlist": {
         "NSCameraUsageDescription": "Grindmates uses the camera to capture your post-workout check-in photo.",
-        "NSPhotoLibraryUsageDescription": "Pick an existing photo for your check-in."
+        "NSPhotoLibraryUsageDescription": "Pick an existing photo for your check-in.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
       "package": "com.grindmates.app",
       "edgeToEdgeEnabled": true,
       "permissions": [
-        "android.permission.CAMERA"
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
       ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
@@ -53,7 +55,11 @@
     },
     "extra": {
       "supabaseUrl": "https://YOUR-PROJECT.supabase.co",
-      "supabaseAnonKey": "YOUR-ANON-KEY"
+      "supabaseAnonKey": "YOUR-ANON-KEY",
+      "router": {},
+      "eas": {
+        "projectId": "0958d7eb-ec3e-43a0-b48e-a66379d788b8"
+      }
     },
     "icon": "./assets/icon.png"
   }
