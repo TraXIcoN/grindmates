@@ -50,8 +50,7 @@
       "favicon": "./assets/favicon.png"
     },
     "experiments": {
-      "typedRoutes": true,
-      "baseUrl": "/grindmates"
+      "typedRoutes": true
     },
     "extra": {
       "supabaseUrl": "https://YOUR-PROJECT.supabase.co",

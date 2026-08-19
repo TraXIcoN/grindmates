@@ -34,6 +34,10 @@ jobs:
       # while the Pages workflow builds against the real project.
       - name: Build web
         run: npx expo export --platform web --output-dir dist
+        env:
+          # Pages serves from /grindmates; app.config.js applies this base path
+          # to web builds only (it breaks native asset paths if global).
+          WEB_BASE_URL: /grindmates
 
       - name: Check the export produced an entry point
         run: test -f dist/index.html

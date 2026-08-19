@@ -38,6 +38,9 @@ jobs:
       - name: Build web
         run: npx expo export --platform web --output-dir dist
         env:
+          # Pages serves from /grindmates; app.config.js applies this base path
+          # to web builds only (it breaks native asset paths if global).
+          WEB_BASE_URL: /grindmates
           EXPO_PUBLIC_SUPABASE_URL: https://megneazswpqukohasryj.supabase.co
           EXPO_PUBLIC_SUPABASE_ANON_KEY: sb_publishable_2e_pBrWEsL0Rr7nommakxA_a_54sniB
 
