@@ -4,7 +4,13 @@
     "appVersionSource": "remote"
   },
   "build": {
+    "base": {
+      "ios": {
+        "image": "latest"
+      }
+    },
     "development": {
+      "extends": "base",
       "developmentClient": true,
       "distribution": "internal",
       "env": {
@@ -13,6 +19,7 @@
       }
     },
     "preview": {
+      "extends": "base",
       "distribution": "internal",
       "env": {
         "EXPO_PUBLIC_SUPABASE_URL": "https://megneazswpqukohasryj.supabase.co",
@@ -20,6 +27,7 @@
       }
     },
     "production": {
+      "extends": "base",
       "autoIncrement": true,
       "env": {
         "EXPO_PUBLIC_SUPABASE_URL": "https://megneazswpqukohasryj.supabase.co",
