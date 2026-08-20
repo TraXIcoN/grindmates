@@ -84,7 +84,7 @@ function Stat({ label, value }: { label: string; value: string }) {
 const styles = StyleSheet.create({
   // Start the gauge at the bottom-left so the gap sits under the number.
   rotate: { transform: [{ rotate: '129deg' }] },
-  center: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
+  center: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center' },
   value: { fontSize: 22, fontWeight: '900', letterSpacing: -0.66 },
   unit: { fontSize: 8.5, fontWeight: '700', letterSpacing: 1.2, color: color.muted, marginTop: 1 },
 

@@ -114,7 +114,7 @@ function StepBtn({
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 18 },
   rotate: { transform: [{ rotate: '-90deg' }] },
-  center: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
+  center: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center' },
   big: { fontSize: 22, fontWeight: '900', letterSpacing: -0.66, color: color.text },
   of: { fontSize: 13, fontWeight: '800', color: color.muted },
   unit: { marginTop: 1, fontSize: 8, fontWeight: '700', letterSpacing: 1.2, color: color.muted },

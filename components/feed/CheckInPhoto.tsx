@@ -46,7 +46,7 @@ const styles = StyleSheet.create({
     backgroundColor: color.photoBg,
   },
   noPhoto: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 32,

@@ -260,7 +260,7 @@ const styles = StyleSheet.create({
   },
 
   viewer: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: alpha(color.scrim, 0.94),
     justifyContent: 'center',
     zIndex: 30,

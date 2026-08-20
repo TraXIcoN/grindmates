@@ -61,7 +61,7 @@ export function CountdownDial({ remaining, progress, running, size = 168 }: Prop
 const styles = StyleSheet.create({
   // -90deg so the arc starts at twelve o'clock.
   ring: { transform: [{ rotate: '-90deg' }] },
-  center: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
+  center: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center' },
   clock: {
     fontSize: type.display.fontSize,
     fontWeight: '900',
